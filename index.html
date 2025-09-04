@@ -246,6 +246,7 @@
         await set(dtrRef, { ...dtrData, timeIn: timeStr, tsIn: Date.now() });
         await set(ref(db, `timeIns/${dateStr}/${uid}`), { uid, name: profile.name || '', email: profile.email || '', date: dateStr, time: timeStr, ts: Date.now(), mode: 'IN' });
         setResult(`Recorded TIME IN for ${profile.name} at ${timeStr}`, 'success');
+        document.getElementById('success-sound').play();
       } else if (mode === 'OUT') {
         if (!dtrData.timeIn) {
           setResult(`User ${profile.name} has not timed IN yet today. Cannot TIME OUT.`, 'error');
