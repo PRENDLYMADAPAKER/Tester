@@ -16,20 +16,20 @@
     overflow: hidden;
   }
 
-  /* Circular logo at top-left */
-  .logo-badge {
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: url('https://i.imgur.com/sjdlb28.jpeg') no-repeat center center;
-    background-size: cover;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    border: 2px solid rgba(255,255,255,0.5);
-    z-index: 10;
-  }
+  /* Circular logo at top-right (outside the card) */
+.logo-badge {
+  position: fixed;
+  top: 10px;   /* distance from the top */
+  right: 10px; /* stick to the right edge */
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: url('https://i.imgur.com/sjdlb28.jpeg') no-repeat center center;
+  background-size: cover;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  border: 2px solid rgba(255,255,255,0.5);
+  z-index: 100; /* keep above everything */
+}
 
   /* Glassmorphism card */
   .card {
