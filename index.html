@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Admin Panel - Clinician DTR</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+  body {
+    font-family: Inter, system-ui, Arial, sans-serif;
+    background: linear-gradient(135deg, #ffffff, #ff9ce3, #a855f7);
+    color: #2c0a34;
+    display: flex;
+    justify-content: center;
+    padding: 28px;
+    min-height: 100vh;
+  }
+
+  .card {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 20px;
+    border-radius: 16px;
+    max-width: 960px;
+    width: 100%;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    position: relative;
+  }
+
+  h1, h2 {
+    color: #2c0a34;
+    margin-top: 0;
+  }
+
+  button {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: none;
+    background: linear-gradient(135deg, #ffffff, #ff9ce3, #a855f7);
+    color: #2c0a34;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s ease;
+  }
+  button:hover {
+    opacity: 0.9;
+    transform: scale(1.03);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+  }
+  th, td {
+    padding: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    font-size: 14px;
+    color: #2c0a34;
+  }
+
+  .muted { font-size: 13px; opacity: 0.8; }
+  .error { color: #b91c1c; }
+  .success { color: #166534; }
+  .row { display: flex; gap: 8px; }
+
+  /* Settings modal */
+  #requestsModal {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+  }
+  #requestsModal .modal-content {
+    background: rgba(255,255,255,0.95);
+    padding: 20px;
+    border-radius: 12px;
+    max-width: 800px;
+    width: 100%;
+    color: #2c0a34;
+  }
+  #closeModal {
+    float: right;
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h1>Admin Panel - Clinician DTR</h1>
+      <button id="openRequests">⚙️ Update Requests</button>
+    </div>
+
+    <section id="scannerSection">
+      <h2>QR Scanner</h2>
+      <div class="row" style="margin-bottom:10px">
+        <button onclick="startScanner()">Start Scanner</button>
+        <button onclick="stopScanner()">Stop Scanner</button>
+      </div>
+      <video id="preview" style="width:100%;border-radius:8px;background:#000"></video>
+      <p id="scanStatus" class="muted"></p>
+    </section>
+
+    <section id="logsSection" style="margin-top:20px">
+      <h2>Attendance Logs</h2>
+      <table>
+        <thead><tr><th>User</th><th>Date</th><th>Time In</th></tr></thead>
+        <tbody id="logsBody"><tr><td colspan="3" class="muted">No logs yet</td></tr></tbody>
+      </table>
+    </section>
+  </div>
+
+  <!-- Requests Modal -->
+  <div id="requestsModal">
+    <div class="modal-content">
+      <button id="closeModal">✖</button>
+      <h2>Update Requests</h2>
+      <label class="muted">Filter: 
+        <select id="filterSelect">
+          <option value="all">All</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </label>
+      <table>
+        <thead><tr><th>User</th><th>Field</th><th>Requested Value</th><th>Current Value</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="requestsBody"><tr><td colspan="6" class="muted">No requests yet</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <!-- libs -->
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database-compat.js"></script>
+
+  <script>
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBYYZrsZECXM2UpW4-38sGQLaPqAqkjSWI",
+      authDomain: "dtr-project-66048.firebaseapp.com",
+      databaseURL: "https://dtr-project-66048-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "dtr-project-66048",
+      storageBucket: "dtr-project-66048.appspot.com",
+      messagingSenderId: "271445506225",
+      appId: "1:271445506225:web:fcb04d0454e1302de14a90",
+      measurementId: "G-R22CLKSPCP"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // === Success Sound ===
+    function playSound(id) {
+      try {
+        const a = document.getElementById(id);
+        if (!a) return;
+        a.play().catch(()=>{});
+      } catch(e){ console.warn('playSound error', e); }
+    }
+
+    // === Scanner ===
+    const codeReader = new ZXing.BrowserQRCodeReader();
+    const preview = document.getElementById('preview');
+    const scanStatus = document.getElementById('scanStatus');
+
+    async function startScanner() {
+      try {
+        const devices = await codeReader.listVideoInputDevices();
+        if (devices.length > 0) {
+          const back = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
+          codeReader.decodeFromVideoDevice(back.deviceId, preview, (result, err) => {
+            if (result && result.getText) handleScan(result.getText());
+          });
+          scanStatus.textContent = "Scanner started. Point camera at QR code.";
+          scanStatus.className = "muted";
+        } else {
+          scanStatus.textContent = "No camera devices found.";
+          scanStatus.className = "error";
+        }
+      } catch (err) {
+        scanStatus.textContent = "Camera error: " + err.message;
+        scanStatus.className = "error";
+      }
+    }
+
+    function stopScanner() {
+      try { codeReader.reset(); } catch(e){}
+      preview.srcObject = null;
+      scanStatus.textContent = "Scanner stopped.";
+      scanStatus.className = "muted";
+    }
+
+    async function handleScan(uid) {
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const timeStr = now.toTimeString().split(' ')[0];
+      await db.ref('users/' + uid + '/dtr/' + dateStr).set({ timeIn: timeStr });
+      scanStatus.textContent = "Recorded for UID " + uid + " at " + timeStr;
+      scanStatus.className = "success";
+      playSound('success-sound');
+    }
+
+    // === Attendance Logs ===
+    const logsBody = document.getElementById('logsBody');
+    db.ref('users').on('value', snap => {
+      logsBody.innerHTML = '';
+      if (!snap.exists()) {
+        logsBody.innerHTML = '<tr><td colspan="3" class="muted">No logs yet</td></tr>';
+        return;
+      }
+      snap.forEach(userSnap => {
+        const profile = userSnap.child('profile').val();
+        const name = profile?.name || userSnap.key;
+        const dtr = userSnap.child('dtr').val() || {};
+        Object.keys(dtr).forEach(date => {
+          const timeIn = dtr[date].timeIn;
+          logsBody.innerHTML += `<tr><td>${name}</td><td>${date}</td><td>${timeIn}</td></tr>`;
+        });
+      });
+    });
+
+    // === Update Requests (Modal + Filter) ===
+    const requestsBody = document.getElementById('requestsBody');
+    const filterSelect = document.getElementById('filterSelect');
+    const requestsModal = document.getElementById('requestsModal');
+    const openRequests = document.getElementById('openRequests');
+    const closeModal = document.getElementById('closeModal');
+
+    openRequests.onclick = () => { requestsModal.style.display = 'flex'; };
+    closeModal.onclick = () => { requestsModal.style.display = 'none'; };
+    window.onclick = (e) => { if (e.target === requestsModal) requestsModal.style.display = 'none'; };
+
+    function renderRequests(snapshot, filter) {
+      requestsBody.innerHTML = '';
+      if (!snapshot.exists()) {
+        requestsBody.innerHTML = '<tr><td colspan="6" class="muted">No requests yet</td></tr>';
+        return;
+      }
+
+      let hasData = false;
+      snapshot.forEach(userSnap => {
+        const uid = userSnap.key;
+        userSnap.forEach(reqSnap => {
+          const req = reqSnap.val();
+          const reqId = reqSnap.key;
+
+          if (filter !== "all" && req.status !== filter) return;
+          hasData = true;
+
+          db.ref('users/' + uid + '/profile').once('value').then(profileSnap => {
+            const profile = profileSnap.val() || {};
+            const currentVal = req.field === "password" ? "••••••" : (profile[req.field] || "");
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${profile.name || uid}</td>
+              <td>${req.field}</td>
+              <td>${req.value}</td>
+              <td>${currentVal}</td>
+              <td>${req.status}</td>
+              <td>
+                <button onclick="approveReq('${uid}','${reqId}','${req.field}','${req.value}')">Approve</button>
+                <button onclick="rejectReq('${uid}','${reqId}')">Reject</button>
+              </td>
+            `;
+            requestsBody.appendChild(row);
+          });
+        });
+      });
+
+      if (!hasData) {
+        requestsBody.innerHTML = '<tr><td colspan="6" class="muted">No matching requests</td></tr>';
+      }
+    }
+
+    db.ref('updateRequests').on('value', snap => {
+      renderRequests(snap, filterSelect.value);
+    });
+
+    filterSelect.onchange = () => {
+      db.ref('updateRequests').once('value').then(snap => {
+        renderRequests(snap, filterSelect.value);
+      });
+    };
+
+    async function approveReq(uid, reqId, field, value) {
+      if (field !== "password") {
+        await db.ref('users/' + uid + '/profile/' + field).set(value);
+      }
+      await db.ref('updateRequests/' + uid + '/' + reqId + '/status').set('approved');
+      playSound('success-sound');
+    }
+    async function rejectReq(uid, reqId) {
+      await db.ref('updateRequests/' + uid + '/' + reqId + '/status').set('rejected');
+    }
+  </script>
+
+  <!-- success sound -->
+  <audio id="success-sound" src="Thank you.mp3" preload="auto"></audio>
+</body>
+</html>
