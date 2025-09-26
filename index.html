@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Clinician DTR - User Panel</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+  body {
+    font-family: Inter, system-ui, Arial, sans-serif;
+    background: linear-gradient(135deg, #ffffff, #ff9ce3, #a855f7);
+    color: #2c0a34;
+    display: flex;
+    justify-content: center;
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    top: 50%; left: 50%;
+    width: 400px; height: 400px;
+    background: url('https://i.imgur.com/sjdlb28.jpeg') no-repeat center center;
+    background-size: cover;
+    opacity: 0.08;
+    transform: translate(-50%, -50%);
+    z-index: 0;
+  }
+
+  .card {
+    position: relative; z-index: 1;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 20px; border-radius: 16px;
+    max-width: 480px; width: 100%;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+
+  h1 {
+    color: #2c0a34;
+    margin: 0 0 12px;
+    font-size: 20px;
+  }
+
+  input, select {
+    width: 100%; box-sizing: border-box;
+    padding: 10px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.4);
+    margin: 8px 0;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(8px);
+    color: #2c0a34;
+  }
+
+  button {
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: none;
+    background: linear-gradient(135deg, #ffffff, #ff9ce3, #a855f7);
+    color: #2c0a34;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s ease;
+  }
+  button:hover { opacity: 0.9; transform: scale(1.03); }
+
+  .muted { font-size: 13px; opacity: 0.8; }
+  .error { color: #b91c1c; }
+  .success { color: #166534; }
+
+  #qr {
+    width: 180px; height: 180px;
+    background: rgba(255,255,255,0.3);
+    backdrop-filter: blur(8px);
+    border-radius: 12px; padding: 8px;
+    margin: 12px auto;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  table { width:100%; border-collapse:collapse; margin-top:12px; }
+  th, td { padding:8px; border-bottom:1px solid rgba(255,255,255,0.3); font-size:13px; text-align:left; }
+
+  .row { display:flex; gap:8px; }
+  .linkbtn { background:transparent; border:1px solid rgba(255,255,255,0.4); }
+
+  /* Profile photo */
+  .profile-photo { text-align:center; margin:12px 0; }
+  .profile-photo img {
+    width:100px; height:100px;
+    border-radius:50%; object-fit:cover;
+    border:2px solid #fff;
+    box-shadow:0 4px 12px rgba(0,0,0,0.2);
+  }
+  .profile-photo button { margin-top:6px; padding:6px 12px; }
+
+  /* Settings modal */
+  #settingsModal {
+    position:fixed; top:0; left:0;
+    width:100%; height:100%;
+    background:rgba(0,0,0,0.5);
+    display:none; justify-content:center; align-items:center;
+    z-index:200;
+  }
+  #settingsModal .modal-content {
+    background:rgba(255,255,255,0.95);
+    padding:20px;
+    border-radius:12px;
+    max-width:400px; width:100%;
+    color:#2c0a34;
+  }
+  #closeModal {
+    float:right;
+    background:#ef4444; color:white;
+    border:none; padding:6px 10px;
+    border-radius:6px; cursor:pointer;
+  }
+  </style>
+</head>
+<body>
+  <div class="card" id="authArea">
+    <h1>Login</h1>
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
+    <button onclick="login()">Login</button>
+    <p id="authMsg" class="muted"></p>
+  </div>
+
+  <div class="card" id="userPanel" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h1>User Panel</h1>
+      <button id="settingsBtn" style="padding:6px 10px;font-size:13px;">⚙️ Update Info</button>
+    </div>
+
+    <!-- Profile Photo Section -->
+    <div class="profile-photo">
+      <img id="profileImg" src="default-avatar.png" alt="Profile" />
+      <input type="file" id="photoInput" accept="image/*" style="display:none;" />
+      <button onclick="document.getElementById('photoInput').click()">Upload Photo</button>
+    </div>
+
+    <div class="muted">Signed in as</div>
+    <div id="nameDisplay" style="font-weight:600"></div>
+    <div id="emailDisplay" class="muted"></div>
+    <div id="levelDisplay" class="muted"></div>
+
+    <div id="qr"></div>
+    <button id="logoutBtn" style="background:#ef4444;color:white;">Logout</button>
+
+    <!-- User DTR Records -->
+    <h3>My DTR Records</h3>
+    <table>
+      <thead><tr><th>Date</th><th>Time In</th></tr></thead>
+      <tbody id="myDtrBody"><tr><td colspan="2" class="muted">No records</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal">
+    <div class="modal-content">
+      <button id="closeModal">✖</button>
+      <h2>Request Update</h2>
+      <label>Field:
+        <select id="fieldSelect">
+          <option value="name">Name</option>
+          <option value="email">Email</option>
+          <option value="password">Password</option>
+          <option value="clinicalLevel">Clinical Level</option>
+        </select>
+      </label>
+      <br><br>
+      <input type="text" id="newValue" placeholder="Enter new value" />
+      <button onclick="submitUpdate()">Submit Request</button>
+      <p id="updateStatus" class="muted"></p>
+    </div>
+  </div>
+<!-- libs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-storage-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBYYZrsZECXM2UpW4-38sGQLaPqAqkjSWI",
+      authDomain: "dtr-project-66048.firebaseapp.com",
+      databaseURL: "https://dtr-project-66048-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "dtr-project-66048",
+      storageBucket: "dtr-project-66048.appspot.com",
+      messagingSenderId: "271445506225",
+      appId: "1:271445506225:web:fcb04d0454e1302de14a90"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+    const storage = firebase.storage();
+
+    const photoInput = document.getElementById('photoInput');
+    const profileImg = document.getElementById('profileImg');
+
+    // Login
+    async function login() {
+      const email = document.getElementById('email').value;
+      const pass = document.getElementById('password').value;
+      const msg = document.getElementById('authMsg');
+      try {
+        await auth.signInWithEmailAndPassword(email, pass);
+      } catch (e) {
+        msg.textContent = e.message;
+        msg.className = "error";
+      }
+    }
+    document.getElementById('logoutBtn').onclick = () => auth.signOut();
+
+    // Upload profile photo
+    photoInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const storageRef = storage.ref('profilePhotos/' + user.uid + '.jpg');
+      await storageRef.put(file);
+      const url = await storageRef.getDownloadURL();
+
+      await db.ref('users/' + user.uid + '/profile/photoURL').set(url);
+      profileImg.src = url;
+      alert("Profile photo updated!");
+    });
+
+    // Load user DTR records
+    async function loadUserDTR(uid) {
+      const tbody = document.getElementById('myDtrBody');
+      const snap = await db.ref('users/' + uid + '/dtr').get();
+      tbody.innerHTML = "";
+      if (!snap.exists()) {
+        tbody.innerHTML = "<tr><td colspan='2' class='muted'>No records</td></tr>";
+        return;
+      }
+      snap.forEach(child => {
+        const date = child.key;
+        const rec = child.val();
+        tbody.innerHTML += `<tr><td>${date}</td><td>${rec.timeIn || '-'}</td></tr>`;
+      });
+    }
+
+    // Auth state
+    auth.onAuthStateChanged(async user => {
+      if (user) {
+        document.getElementById('authArea').style.display = 'none';
+        document.getElementById('userPanel').style.display = 'block';
+
+        const profileSnap = await db.ref('users/' + user.uid + '/profile').get();
+        const profile = profileSnap.exists() ? profileSnap.val() : {};
+
+        document.getElementById('nameDisplay').textContent = profile.name || user.email;
+        document.getElementById('emailDisplay').textContent = profile.email || '';
+        document.getElementById('levelDisplay').textContent = profile.clinicalLevel ? `Clinical Level: ${profile.clinicalLevel}` : '';
+
+        if (profile.photoURL) {
+          profileImg.src = profile.photoURL;
+        } else {
+          profileImg.src = "default-avatar.png";
+        }
+
+        // QR code
+        const qrDiv = document.getElementById('qr');
+        qrDiv.innerHTML = "";
+        new QRCode(qrDiv, { text: user.uid, width: 160, height: 160 });
+
+        // Load DTR
+        loadUserDTR(user.uid);
+      } else {
+        document.getElementById('authArea').style.display = 'block';
+        document.getElementById('userPanel').style.display = 'none';
+      }
+    });
+
+    // Settings modal
+    const settingsModal = document.getElementById('settingsModal');
+    document.getElementById('settingsBtn').onclick = () => { settingsModal.style.display = 'flex'; };
+    document.getElementById('closeModal').onclick = () => { settingsModal.style.display = 'none'; };
+    window.onclick = e => { if (e.target === settingsModal) settingsModal.style.display = 'none'; };
+
+    // Submit update request
+    async function submitUpdate() {
+      const field = document.getElementById('fieldSelect').value;
+      const value = document.getElementById('newValue').value.trim();
+      const status = document.getElementById('updateStatus');
+      const user = auth.currentUser;
+      if (!user) return;
+
+      if (!value) {
+        status.textContent = "Please enter a value.";
+        status.className = "error";
+        return;
+      }
+
+      const reqRef = db.ref('updateRequests/' + user.uid).push();
+      await reqRef.set({
+        field,
+        value,
+        status: "pending",
+        timestamp: Date.now()
+      });
+
+      status.textContent = "Request submitted.";
+      status.className = "success";
+      document.getElementById('newValue').value = "";
+    }
+  </script>
+</body>
+</html>
