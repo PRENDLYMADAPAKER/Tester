@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>User Panel - Clinician DTR</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    body {
+      font-family: Inter, system-ui, Arial, sans-serif;
+      background: linear-gradient(135deg, #ffffff, #ff9ce3, #a855f7);
+      color: #2c0a34;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 20px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 600px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      margin-bottom: 20px;
+    }
+    h1,h2 { margin-top:0; color:#2c0a34; }
+    button {
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(135deg, #ffffff, #ff9ce3, #a855f7);
+      color:#2c0a34;
+      font-weight:600;
+      cursor:pointer;
+      transition:0.3s ease;
+    }
+    button:hover { opacity:0.9; transform:scale(1.03); }
+    table { width:100%; border-collapse:collapse; margin-top:12px; }
+    th,td { padding:8px; border-bottom:1px solid rgba(255,255,255,0.3); font-size:14px; text-align:center; }
+    .muted { font-size:13px; opacity:0.8; }
+    .error { color:#b91c1c; }
+    .success { color:#166534; }
+    #userPanel, #registerPanel { display:none; }
+    #loginPanel { display:block; }
+    .profile-pic {
+      width:100px; height:100px; border-radius:50%;
+      object-fit:cover; border:2px solid #fff;
+    }
+    @media (max-width: 768px) {
+      table { display:block; overflow-x:auto; white-space:nowrap; }
+      button { width:100%; margin-top:5px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Panel -->
+  <div id="loginPanel" class="card">
+    <h1>User Login</h1>
+    <input id="email" type="email" placeholder="Email" style="width:100%;padding:8px;margin-bottom:10px"/>
+    <input id="password" type="password" placeholder="Password" style="width:100%;padding:8px;margin-bottom:10px"/>
+    <button onclick="login()">Login</button>
+    <button onclick="showRegister()">Create Account</button>
+    <p id="loginError" class="error muted"></p>
+  </div>
+
+  <!-- Register Panel -->
+  <div id="registerPanel" class="card">
+    <h1>Create Account</h1>
+    <input id="regName" type="text" placeholder="Full Name" style="width:100%;padding:8px;margin-bottom:10px"/>
+    <input id="regEmail" type="email" placeholder="Email" style="width:100%;padding:8px;margin-bottom:10px"/>
+    <input id="regPassword" type="password" placeholder="Password" style="width:100%;padding:8px;margin-bottom:10px"/>
+    <input id="regLevel" type="text" placeholder="Clinical Level (e.g. Intern, Nurse, Doctor)" style="width:100%;padding:8px;margin-bottom:10px"/>
+    <label class="muted">Profile Picture (required):</label>
+    <input type="file" id="regPic" accept="image/*" style="margin:8px 0"/>
+    <button onclick="register()">Register</button>
+    <button onclick="cancelRegister()">Cancel</button>
+    <p id="regError" class="error muted"></p>
+  </div>
+
+  <!-- User Panel -->
+  <div id="userPanel" class="card">
+    <div style="text-align:center;margin-bottom:16px">
+      <img id="profilePic" src="https://via.placeholder.com/100?text=No+Image" class="profile-pic"/>
+    </div>
+    <h2>Welcome, <span id="nameDisplay">User</span></h2>
+    <p id="emailDisplay"></p>
+    <p id="levelDisplay"></p>
+    <button onclick="logout()">Logout</button>
+
+    <h3 style="margin-top:20px">My Attendance (Today)</h3>
+    <table>
+      <thead><tr><th>Date</th><th>Time In</th></tr></thead>
+      <tbody id="attendanceBody"><tr><td colspan="2" class="muted">Loading...</td></tr></tbody>
+    </table>
+  </div>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-storage-compat.js"></script>
+
+  <script>
+    // === Firebase Config ===
+    const firebaseConfig = {
+      apiKey: "AIzaSyBYYZrsZECXM2UpW4-38sGQLaPqAqkjSWI",
+      authDomain: "dtr-project-66048.firebaseapp.com",
+      databaseURL: "https://dtr-project-66048-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "dtr-project-66048",
+      storageBucket: "dtr-project-66048.appspot.com",
+      messagingSenderId: "271445506225",
+      appId: "1:271445506225:web:fcb04d0454e1302de14a90",
+      measurementId: "G-R22CLKSPCP"
+    };
+    firebase.initializeApp(firebaseConfig);
+
+    const auth = firebase.auth();
+    const db = firebase.database();
+    const storage = firebase.storage();
+
+    // === Login ===
+    async function login() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        document.getElementById("loginError").textContent = "";
+      } catch (e) {
+        document.getElementById("loginError").textContent = e.message;
+      }
+    }
+
+    function logout() {
+      auth.signOut();
+    }
+
+    // === Register ===
+    function showRegister() {
+      document.getElementById("loginPanel").style.display = "none";
+      document.getElementById("registerPanel").style.display = "block";
+    }
+    function cancelRegister() {
+      document.getElementById("registerPanel").style.display = "none";
+      document.getElementById("loginPanel").style.display = "block";
+    }
+
+    async function register() {
+      const name = document.getElementById("regName").value.trim();
+      const email = document.getElementById("regEmail").value.trim();
+      const password = document.getElementById("regPassword").value;
+      const clinicalLevel = document.getElementById("regLevel").value.trim();
+      const fileInput = document.getElementById("regPic");
+
+      if (!name || !email || !password || !clinicalLevel) {
+        document.getElementById("regError").textContent = "⚠️ Please fill in all fields.";
+        return;
+      }
+      if (!fileInput.files.length) {
+        document.getElementById("regError").textContent = "⚠️ Profile picture is required.";
+        return;
+      }
+
+      try {
+        // Create user in Firebase Auth
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
+
+        // Upload profile picture
+        const file = fileInput.files[0];
+        const ref = storage.ref("profilePics/" + cred.user.uid + "/" + file.name);
+        await ref.put(file);
+        const url = await ref.getDownloadURL();
+
+        // Save profile in Realtime Database
+        await db.ref("users/" + cred.user.uid + "/profile").set({
+          name: name,
+          email: email,
+          clinicalLevel: clinicalLevel,
+          photoURL: url
+        });
+
+        document.getElementById("regError").textContent = "";
+        alert("✅ Account created! You can now log in.");
+        cancelRegister();
+      } catch (e) {
+        document.getElementById("regError").textContent = e.message;
+      }
+    }
+
+    // === Auth State Listener ===
+    auth.onAuthStateChanged(async user => {
+      if (user) {
+        document.getElementById("loginPanel").style.display = "none";
+        document.getElementById("registerPanel").style.display = "none";
+        document.getElementById("userPanel").style.display = "block";
+
+        const snap = await db.ref("users/" + user.uid + "/profile").once("value");
+        const profile = snap.val() || {};
+
+        document.getElementById("nameDisplay").textContent = profile.name || user.email;
+        document.getElementById("emailDisplay").textContent = profile.email || "";
+        document.getElementById("levelDisplay").textContent = profile.clinicalLevel ? `Clinical Level: ${profile.clinicalLevel}` : "";
+        document.getElementById("profilePic").src = profile.photoURL || "https://via.placeholder.com/100?text=No+Image";
+
+        loadAttendance(user.uid);
+      } else {
+        document.getElementById("loginPanel").style.display = "block";
+        document.getElementById("userPanel").style.display = "none";
+      }
+    });
+
+    // === Load Today’s Attendance ===
+    function loadAttendance(uid) {
+      const today = new Date().toISOString().split("T")[0];
+      db.ref("users/" + uid + "/dtr/" + today).on("value", snap => {
+        const body = document.getElementById("attendanceBody");
+        if (snap.exists()) {
+          const d = snap.val();
+          body.innerHTML = `<tr><td>${today}</td><td>${d.timeIn || "-"}</td></tr>`;
+        } else {
+          body.innerHTML = `<tr><td colspan="2" class="muted">No record today</td></tr>`;
+        }
+      });
+    }
+  </script>
+</body>
+</html>
