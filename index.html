@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Clinician DTR System</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body {
+      font-family: Inter, system-ui, Arial, sans-serif;
+      background: linear-gradient(135deg, #ffffff, #ff9ce3, #a855f7);
+      color: #2c0a34;
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 20px;
+      border-radius: 16px;
+      width: 100%;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      margin-bottom: 20px;
+    }
+    h1,h2 { margin-top: 0; color: #2c0a34; }
+    button {
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(135deg,#ffffff,#ff9ce3,#a855f7);
+      color: #2c0a34;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.3s ease;
+    }
+    button:hover { opacity: 0.9; transform: scale(1.03); }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th,td {
+      padding: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.3);
+      font-size: 14px;
+      text-align: center;
+    }
+    .row { display: flex; gap: 8px; }
+    .muted { font-size: 13px; opacity: 0.8; }
+    .error { color: #b91c1c; }
+    .success { color: #166534; }
+    #dashboard {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 100%;
+      max-width: 1300px;
+    }
+    .dashboard-left { flex: 0 0 400px; }
+    .dashboard-right { flex: 1; }
+    #preview {
+      width: 100%;
+      max-width: 380px;
+      border-radius: 8px;
+      background: #000;
+    }
+
+    /* === NEW: Highlight bar under QR video === */
+    #scanHighlight {
+      margin-top: 10px;
+      height: 50px;
+      border-radius: 8px;
+      text-align: center;
+      line-height: 50px;
+      font-weight: bold;
+      font-size: 16px;
+      opacity: 0;
+      transition: opacity 0.5s, background 0.5s;
+    }
+    #scanHighlight.success {
+      background: linear-gradient(90deg,#22c55e,#4ade80);
+      color: white; opacity: 1;
+    }
+    #scanHighlight.error {
+      background: linear-gradient(90deg,#ef4444,#f87171);
+      color: white; opacity: 1;
+    }
+
+    /* === NEW: Flash effect for new Attendance row === */
+    tr.flash-row { animation: flashGreen 1.5s ease; }
+    @keyframes flashGreen {
+      0% { background-color: #bbf7d0; }
+      100% { background-color: transparent; }
+    }
+
+    /* === NEW: Highlight search matches === */
+    mark {
+      background: yellow; color: black;
+      font-weight: bold; padding: 0 2px;
+      border-radius: 3px;
+    }
+
+    @media (min-width:1024px) {
+      #dashboard { flex-direction: row; align-items: flex-start; }
+    }
+    @media (max-width:768px) {
+      .row { flex-direction: column; }
+      table { display: block; overflow-x: auto; white-space: nowrap; }
+      button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div id="dashboard">
+    <!-- Left side: Scanner -->
+    <div class="dashboard-left">
+      <div class="card">
+        <h2>QR Scanner</h2>
+        <div class="row" style="margin-bottom:10px">
+          <button onclick="startScanner()">Start Scanner</button>
+          <button onclick="stopScanner()" style="background:#ef4444;color:white;">Stop Scanner</button>
+        </div>
+        <video id="preview"></video>
+        <!-- 🔹 NEW highlight bar -->
+        <div id="scanHighlight"></div>
+        <p id="scanStatus" class="muted"></p>
+      </div>
+  </div>
+  <!-- Right side -->
+    <div class="dashboard-right">
+      <!-- Panel header -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h1>Admin Panel - Clinician DTR</h1>
+          <div class="row">
+            <button id="openRequests">⚙️ Update Requests</button>
+            <button id="openBasket">🗂 Basket</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attendance Logs -->
+      <div class="card" id="logsSection">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h2>Attendance Logs (Today)</h2>
+          <div class="row">
+            <button onclick="exportLogs()">Export</button>
+            <button onclick="printLogs()">Print</button>
+            <button onclick="resetLogs()">Clear Logs View</button>
+            <button onclick="deleteToday()" style="background:#ef4444;color:white;">Delete Today’s Records</button>
+          </div>
+        </div>
+
+        <!-- 🔹 NEW Search bar -->
+        <input type="text" id="logSearch" placeholder="🔍 Search logs..."
+          style="margin:10px 0;padding:6px 10px;width:100%;max-width:300px;
+          border-radius:8px;border:1px solid #ccc;">
+
+        <table>
+          <thead>
+            <tr><th>User</th><th>Clinical Level</th><th>Date</th><th>Time In</th></tr>
+          </thead>
+          <tbody id="logsBody">
+            <tr><td colspan="4" class="muted">No logs today</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Update Requests Modal -->
+      <div class="modal" id="requestsModal">
+        <div class="modal-content">
+          <button class="closeBtn" onclick="closeRequests()">Close</button>
+          <h2>Update Requests</h2>
+          <div id="requestsList"><p class="muted">No requests found.</p></div>
+        </div>
+      </div>
+
+      <!-- Basket Modal -->
+      <div class="modal" id="basketModal">
+        <div class="modal-content">
+          <button class="closeBtn" onclick="closeBasket()">Close</button>
+          <h2>Basket</h2>
+          <div id="basketList"><p class="muted">No items in basket.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Firebase + ZXing -->
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database-compat.js"></script>
+
+  <script>
+    // ✅ Firebase config (yours preserved)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBYYZrsZECXM2UpW4-38sGQLaPqAqkjSWI",
+      authDomain: "dtr-project-66048.firebaseapp.com",
+      databaseURL: "https://dtr-project-66048-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "dtr-project-66048",
+      storageBucket: "dtr-project-66048.appspot.com",
+      messagingSenderId: "271445506225",
+      appId: "1:271445506225:web:fcb04d0454e1302de14a90"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // ZXing scanner
+    let codeReader = null;
+    async function startScanner() {
+      if (!codeReader) codeReader = new ZXing.BrowserQRCodeReader();
+      const preview = document.getElementById("preview");
+      try {
+        const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+        if (devices.length === 0) {
+          alert("No camera found");
+          return;
+        }
+        await codeReader.decodeFromVideoDevice(devices[0].deviceId, preview, (result, err) => {
+          if (result) {
+            handleScan(result.text.trim());
+          }
+        });
+      } catch (e) {
+        console.error("Scanner error", e);
+      }
+    }
+    function stopScanner() {
+      if (codeReader) {
+        codeReader.reset();
+        document.getElementById("preview").srcObject = null;
+      }
+    }
+
+    // ✅ Handle Scan with Highlight + Row Flash
+    async function handleScan(uid) {
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const timeStr = now.toTimeString().split(' ')[0];
+      const dtrRef = db.ref('users/' + uid + '/dtr/' + dateStr);
+      const snapshot = await dtrRef.once('value');
+      const highlight = document.getElementById("scanHighlight");
+
+      if (snapshot.exists() && snapshot.val().timeIn) {
+        const profileSnap = await db.ref('users/' + uid + '/profile').once('value');
+        const profile = profileSnap.val() || {};
+        highlight.textContent = `⚠️ Already scanned today: ${profile.name || uid}`;
+        highlight.className = "error";
+        setTimeout(()=>{ highlight.className=""; highlight.textContent=""; },2000);
+        return;
+      }
+
+      await dtrRef.set({ timeIn: timeStr });
+      const profileSnap = await db.ref('users/' + uid + '/profile').once('value');
+      const profile = profileSnap.val() || {};
+      highlight.textContent = `✅ ${profile.name || uid} | Level: ${profile.clinicalLevel || '-'} | Time In: ${timeStr}`;
+      highlight.className = "success";
+      setTimeout(()=>{ highlight.className=""; highlight.textContent=""; },2000);
+
+      // ✅ Flash new row in logs
+      const tbody = document.getElementById('logsBody');
+      if (tbody.children[0] && tbody.children[0].cells.length === 1) tbody.innerHTML = "";
+      const newRow = document.createElement("tr");
+      newRow.innerHTML = `<td>${profile.name || uid}</td><td>${profile.clinicalLevel || '-'}</td><td>${dateStr}</td><td>${timeStr}</td>`;
+      newRow.classList.add("flash-row");
+      tbody.appendChild(newRow);
+    }
+
+    // ✅ Search + Highlight in Attendance Logs
+    document.getElementById("logSearch").addEventListener("keyup", function() {
+      const filter = this.value.toLowerCase();
+      const rows = document.querySelectorAll("#logsBody tr");
+      rows.forEach(row => {
+        const cells = row.querySelectorAll("td");
+        let matchFound = false;
+        cells.forEach(cell => {
+          const text = cell.textContent;
+          if (filter && text.toLowerCase().includes(filter)) {
+            matchFound = true;
+            const regex = new RegExp(`(${filter})`, "gi");
+            cell.innerHTML = text.replace(regex, "<mark>$1</mark>");
+          } else {
+            cell.innerHTML = text;
+          }
+        });
+        row.style.display = (filter && !matchFound) ? "none" : "";
+      });
+    });
+
+    // Placeholders for export/print/reset/delete functions
+    function exportLogs(){ alert("Exporting logs..."); }
+    function printLogs(){ window.print(); }
+    function resetLogs(){ document.getElementById('logsBody').innerHTML='<tr><td colspan="4" class="muted">No logs today</td></tr>'; }
+    function deleteToday(){ alert("Delete today's records logic here."); }
+
+    // Modal open/close (preserve your existing)
+    function closeRequests(){ document.getElementById("requestsModal").style.display="none"; }
+    function closeBasket(){ document.getElementById("basketModal").style.display="none"; }
+    document.getElementById("openRequests").onclick=()=>{document.getElementById("requestsModal").style.display="flex";}
+    document.getElementById("openBasket").onclick=()=>{document.getElementById("basketModal").style.display="flex";}
+  </script>
+
+  <audio id="success-sound" src="Thank you.mp3" preload="auto"></audio>
+</body>
+</html>
