@@ -3,35 +3,147 @@
 <head>
   <meta charset="UTF-8">
   <title>Admin Panel</title>
+  <!-- Google Font for modern look -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    body { margin:0; font-family: Arial, sans-serif; background:#111; color:#fff; }
-    .sidebar { width:220px; background:#222; height:100vh; float:left; padding-top:20px; }
-    .sidebar button { display:block; width:100%; padding:12px; border:none; background:none; color:#fff; text-align:left; cursor:pointer; }
-    .sidebar button.active, .sidebar button:hover { background:#444; }
-    .content { margin-left:220px; padding:20px; }
-    h2 { margin-top:0; }
-    table { width:100%; border-collapse: collapse; margin-top:10px; background:#1c1c1c; }
-    th, td { border:1px solid #333; padding:8px; text-align:center; }
-    th { background:#333; }
-    button.primary { background:#a855f7; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; }
-    button.primary:hover { background:#9333ea; }
-    .muted { color:#aaa; }
-    .card { background:#1e1e1e; padding:15px; margin-bottom:20px; border-radius:8px; }
-    #preview { width:100%; max-width:480px; background:#000; }
-    #scanResult { display:none; margin-top:10px; }
-    .modal { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; z-index:1000; }
-    .modal-content { background:#1e1e1e; padding:20px; border-radius:10px; max-width:600px; width:90%; color:#fff; }
+    body {
+      margin:0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #0d0d0d, #1a1a1a);
+      color:#eee;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width:230px;
+      background:rgba(20,20,30,0.95);
+      backdrop-filter: blur(10px);
+      height:100vh;
+      float:left;
+      padding-top:20px;
+      box-shadow: 4px 0 12px rgba(0,0,0,0.5);
+    }
+    .sidebar .logo-container {
+      text-align:center;
+      margin-bottom:20px;
+    }
+    .logo {
+      width:80px;
+      height:80px;
+      border-radius:50%;
+      border:2px solid #a855f7;
+      box-shadow:0 0 15px #a855f7;
+      object-fit:cover;
+    }
+    .app-title {
+      font-size:1.2rem;
+      color:#fff;
+      margin-top:8px;
+      font-weight:600;
+    }
+    .sidebar button {
+      display:block;
+      width:90%;
+      margin:8px auto;
+      padding:12px;
+      border:none;
+      border-radius:8px;
+      background: linear-gradient(90deg,#a855f7,#ec4899);
+      color:#fff;
+      font-weight:600;
+      cursor:pointer;
+      transition: all 0.3s;
+    }
+    .sidebar button:hover,
+    .sidebar button.active {
+      background:linear-gradient(90deg,#ec4899,#a855f7);
+      box-shadow:0 0 12px #a855f7;
+    }
+
+    /* Content area */
+    .content {
+      margin-left:230px;
+      padding:25px;
+    }
+
+    /* Cards */
+    .card {
+      background:rgba(30,30,40,0.9);
+      border-radius:12px;
+      padding:20px;
+      margin-bottom:25px;
+      box-shadow:0 4px 20px rgba(0,0,0,0.6);
+    }
+
+    /* Tables */
+    table {
+      width:100%;
+      border-collapse: collapse;
+      margin-top:12px;
+    }
+    th, td {
+      border:1px solid #333;
+      padding:10px;
+    }
+    th {
+      background:#a855f7;
+      color:#fff;
+      text-transform:uppercase;
+    }
+    tr:nth-child(even) td { background:rgba(255,255,255,0.03); }
+    tr:hover td { background:rgba(255,255,255,0.08); }
+
+    /* Buttons */
+    button.primary {
+      background:linear-gradient(90deg,#a855f7,#ec4899);
+      border:none;
+      border-radius:6px;
+      padding:6px 14px;
+      color:#fff;
+      font-weight:600;
+      cursor:pointer;
+      transition:all 0.2s;
+    }
+    button.primary:hover {
+      box-shadow:0 0 12px #a855f7;
+    }
+
+    /* Modals */
+    .modal {
+      display:none;
+      position:fixed;
+      top:0; left:0; right:0; bottom:0;
+      background:rgba(0,0,0,0.8);
+      align-items:center;
+      justify-content:center;
+      z-index:1000;
+    }
+    .modal-content {
+      background:rgba(30,30,40,0.95);
+      padding:20px;
+      border-radius:10px;
+      max-width:600px;
+      width:90%;
+      color:#fff;
+      box-shadow:0 4px 20px rgba(0,0,0,0.7);
+    }
     canvas { background:#111; border-radius:50%; }
+    .muted { color:#aaa; }
   </style>
 </head>
 <body>
   <div class="sidebar">
-    <button id="sidebarScanner" class="active">Scanner</button>
-    <button id="sidebarLogs">Attendance Logs</button>
-    <button id="sidebarRequests">Update Requests</button>
-    <button id="sidebarBasket">Basket</button>
-    <button id="sidebarCases">Case Selections</button>
-    <button id="sidebarInstructors">Instructors</button>
+    <div class="logo-container">
+      <!-- Replace src with your actual logo file or Firebase Storage link -->
+      <img src="college-logo.png" alt="Logo" class="logo">
+      <h1 class="app-title">Admin Panel</h1>
+    </div>
+    <button id="sidebarScanner" class="active">📷 Scanner</button>
+    <button id="sidebarLogs">📝 Attendance Logs</button>
+    <button id="sidebarRequests">📩 Update Requests</button>
+    <button id="sidebarBasket">🗑 Basket</button>
+    <button id="sidebarCases">📂 Case Selections</button>
+    <button id="sidebarInstructors">🎡 Instructors</button>
   </div>
 
   <div class="content">
@@ -50,6 +162,7 @@
       <button class="primary" onclick="startScanner()">Start Scanner</button>
       <button class="primary" onclick="stopScanner()">Stop Scanner</button>
       <audio id="success-sound" src="https://www.soundjay.com/buttons/beep-07.wav" preload="auto"></audio>
+    </div>
     </div>
     <!-- Attendance Logs -->
     <div id="logsSection" class="card" style="display:none">
