@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Panel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin:0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #ffffff, #ffb6f9, #a855f7);
+      color:#222;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width:230px;
+      background:rgba(255,255,255,0.9);
+      backdrop-filter: blur(10px);
+      height:100vh;
+      float:left;
+      padding-top:20px;
+      box-shadow: 4px 0 12px rgba(0,0,0,0.2);
+    }
+    .sidebar .logo-container {
+      text-align:center;
+      margin-bottom:20px;
+    }
+    .logo {
+      width:80px;
+      height:80px;
+      border-radius:50%;
+      border:2px solid #a855f7;
+      box-shadow:0 0 15px #a855f7;
+      object-fit:cover;
+    }
+    .app-title {
+      font-size:1.2rem;
+      color:#222;
+      margin-top:8px;
+      font-weight:600;
+    }
+    .sidebar button {
+      display:block;
+      width:90%;
+      margin:8px auto;
+      padding:12px;
+      border:none;
+      border-radius:8px;
+      background: linear-gradient(90deg,#a855f7,#ec4899);
+      color:#fff;
+      font-weight:600;
+      cursor:pointer;
+      transition: all 0.3s;
+    }
+    .sidebar button:hover,
+    .sidebar button.active {
+      background:linear-gradient(90deg,#ec4899,#a855f7);
+      box-shadow:0 0 12px #a855f7;
+    }
+
+    /* Content */
+    .content {
+      margin-left:230px;
+      padding:25px;
+    }
+
+    /* Cards */
+    .card {
+      background:#fff;
+      border-radius:12px;
+      padding:20px;
+      margin-bottom:25px;
+      box-shadow:0 4px 20px rgba(0,0,0,0.2);
+      color:#222;
+    }
+
+    /* Tables */
+    table {
+      width:100%;
+      border-collapse: collapse;
+      margin-top:12px;
+      background:#fff;
+      color:#222;
+    }
+    th, td {
+      border:1px solid #ccc;
+      padding:10px;
+    }
+    th {
+      background: linear-gradient(90deg,#a855f7,#ec4899);
+      color:#fff;
+      text-transform:uppercase;
+    }
+    tr:nth-child(even) td { background:#f9f9f9; }
+    tr:hover td { background:#f1e4ff; }
+
+    /* Buttons */
+    button.primary {
+      background:linear-gradient(90deg,#a855f7,#ec4899);
+      border:none;
+      border-radius:6px;
+      padding:6px 14px;
+      color:#fff;
+      font-weight:600;
+      cursor:pointer;
+      transition:all 0.2s;
+    }
+    button.primary:hover {
+      box-shadow:0 0 12px #a855f7;
+    }
+
+    /* Modals */
+    .modal {
+      display:none;
+      position:fixed;
+      top:0; left:0; right:0; bottom:0;
+      background:rgba(0,0,0,0.6);
+      align-items:center;
+      justify-content:center;
+      z-index:1000;
+    }
+    .modal-content {
+      background:#fff;
+      padding:20px;
+      border-radius:10px;
+      max-width:600px;
+      width:90%;
+      color:#222;
+      box-shadow:0 4px 20px rgba(0,0,0,0.4);
+    }
+    canvas { background:#f9f9f9; border-radius:50%; }
+    .muted { color:#666; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo-container">
+      <img src="your-logo.png" alt="Logo" class="logo">
+      <h1 class="app-title">Admin Panel</h1>
+    </div>
+    <button id="sidebarScanner" class="active">📷 Scanner</button>
+    <button id="sidebarLogs">📝 Attendance Logs</button>
+    <button id="sidebarRequests">📩 Update Requests</button>
+    <button id="sidebarBasket">🗑 Basket</button>
+    <button id="sidebarCases">📂 Case Selections</button>
+    <button id="sidebarInstructors">🎡 Instructors</button>
+  </div>
+
+  <div class="content">
+    <!-- Scanner Section -->
+    <div id="scannerCard" class="card">
+      <h2>QR Scanner</h2>
+      <video id="preview" autoplay></video>
+      <p id="scanStatus">Ready to scan</p>
+      <div id="scanResult" class="card">
+        <h3>Scan Result</h3>
+        <p><b>Name:</b> <span id="resName"></span></p>
+        <p><b>Level:</b> <span id="resLevel"></span></p>
+        <p><b>Email:</b> <span id="resEmail"></span></p>
+        <p><b>Time In:</b> <span id="resTime"></span></p>
+      </div>
+      <button class="primary" onclick="startScanner()">Start Scanner</button>
+      <button class="primary" onclick="stopScanner()">Stop Scanner</button>
+      <audio id="success-sound" src="https://www.soundjay.com/buttons/beep-07.wav" preload="auto"></audio>
+  </div>
+  <!-- Attendance Logs -->
+    <div id="logsSection" class="card" style="display:none">
+      <h2>Attendance Logs</h2>
+      <div>
+        <button class="primary" onclick="refreshLogsView()">Refresh</button>
+        <button class="primary" onclick="exportLogs()">Export</button>
+        <button class="primary" onclick="printLogs()">Print</button>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Date</th><th>Time In</th></tr>
+        </thead>
+        <tbody id="logsBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Update Requests -->
+    <div id="requestsSection" class="card" style="display:none">
+      <h2>Update Requests</h2>
+      <table>
+        <thead>
+          <tr><th>User</th><th>Field</th><th>Value</th><th>Status</th><th>Action</th></tr>
+        </thead>
+        <tbody id="requestsBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Basket -->
+    <div id="basketSection" class="card" style="display:none">
+      <h2>Basket</h2>
+      <div>
+        <button class="primary" onclick="showBasket('approved')">Approved</button>
+        <button class="primary" onclick="showBasket('rejected')">Rejected</button>
+      </div>
+      <table>
+        <thead>
+          <tr><th>User</th><th>Field</th><th>Value</th><th>Status</th></tr>
+        </thead>
+        <tbody id="basketBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Case Selections -->
+    <div id="casesSection" class="card" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>Case Selections</h2>
+        <div>
+          <button class="primary" onclick="loadCases()">Refresh</button>
+          <button class="primary" onclick="exportCases()">Export</button>
+          <button class="primary" onclick="printCases()">Print</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Clinician</th>
+            <th>Type</th>
+            <th>Details</th>
+            <th>Instructor</th>
+            <th>Date</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="casesBody"></tbody>
+      </table>
+    </div>
+    <!-- Instructor Management -->
+    <div id="instructorsSection" class="card" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>Instructor Management</h2>
+        <div>
+          <input type="text" id="newInstructor" placeholder="Instructor Name">
+          <button class="primary" onclick="addInstructor()">Add</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Action</th></tr>
+        </thead>
+        <tbody id="instructorsBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Spin the Wheel Modal -->
+    <div id="wheelModal" class="modal">
+      <div class="modal-content">
+        <h2>Spin the Wheel</h2>
+        <canvas id="wheelCanvas" width="400" height="400"></canvas>
+        <div style="margin-top:15px;text-align:center">
+          <button class="primary" onclick="spinWheel()">Spin</button>
+          <button class="primary" onclick="confirmAssign()">Confirm Assign</button>
+          <button class="primary" onclick="closeWheel()">Close</button>
+        </div>
+        <p id="wheelResult" style="margin-top:15px;font-weight:bold;text-align:center"></p>
+      </div>
+    </div>
+    <!-- Part 4: JavaScript -->
+<script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database-compat.js"></script>
+
+<script>
+/* ====== CONFIG ====== */
+const firebaseConfig = {
+  apiKey: "AIzaSyBYYZrsZECXM2UpW4-38sGQLaPqAqkjSWI",
+  authDomain: "dtr-project-66048.firebaseapp.com",
+  databaseURL: "https://dtr-project-66048-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "dtr-project-66048",
+  storageBucket: "dtr-project-66048.appspot.com",
+  messagingSenderId: "271445506225",
+  appId: "1:271445506225:web:fcb04d0454e1302de14a90"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* ====== HELPERS ====== */
+const $ = id => document.getElementById(id);
+const fmtDate = ts => ts ? new Date(ts).toLocaleString() : '-';
+function safeText(str){ return String(str ?? ''); }
+
+/* ====== QR Scanner (ZXing) ====== */
+const codeReader = new ZXing.BrowserQRCodeReader();
+const preview = $('preview');
+const scanStatus = $('scanStatus');
+
+async function startScanner(){
+  try {
+    const devices = await codeReader.listVideoInputDevices();
+    if(!devices || devices.length === 0){ scanStatus.textContent = "No camera found"; return; }
+    const back = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
+    codeReader.decodeFromVideoDevice(back.deviceId, preview, (result, err) => {
+      if(result && result.getText) handleScan(result.getText());
+      if(err && !(err instanceof ZXing.NotFoundException)) {
+        // NotFoundException is common while scanning; just ignore
+        console.debug('scanner error', err);
+      }
+    });
+    scanStatus.textContent = "Scanner running...";
+  } catch(e){
+    console.error('startScanner', e);
+    scanStatus.textContent = "Camera error: " + (e.message||e);
+  }
+}
+
+function stopScanner(){
+  try { codeReader.reset(); } catch(e){ console.debug(e); }
+  try { preview.srcObject = null; } catch(e){}
+  scanStatus.textContent = "Scanner stopped.";
+}
+
+async function handleScan(uid){
+  // uid is expected to be the scanned identifier
+  try{
+    const now = new Date();
+    const dateKey = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().split(' ')[0];
+    const dtrRef = db.ref(`users/${uid}/dtr/${dateKey}`);
+    const snap = await dtrRef.get();
+    const profileSnap = await db.ref(`users/${uid}/profile`).get();
+    const profile = profileSnap.exists() ? profileSnap.val() : {};
+    if(snap.exists() && snap.val().timeIn){
+      $('resName').textContent = profile.name || uid;
+      $('resLevel').textContent = profile.clinicalLevel || '-';
+      $('resEmail').textContent = profile.email || '-';
+      $('resTime').textContent = snap.val().timeIn;
+      $('scanResult').style.display = 'block';
+      scanStatus.textContent = `${profile.name || uid} already Time-In at ${snap.val().timeIn}`;
+      return;
+    }
+    await dtrRef.set({ timeIn: timeStr, ts: Date.now() });
+    $('resName').textContent = profile.name || uid;
+    $('resLevel').textContent = profile.clinicalLevel || '-';
+    $('resEmail').textContent = profile.email || '-';
+    $('resTime').textContent = timeStr;
+    $('scanResult').style.display = 'block';
+    scanStatus.textContent = `Recorded ${profile.name || uid} at ${timeStr}`;
+    try{ $('success-sound')?.play().catch(()=>{}); }catch(e){}
+    // refresh logs view
+    refreshLogsView();
+  }catch(e){
+    console.error('handleScan', e);
+    scanStatus.textContent = 'Scan handling error';
+  }
+}
+
+/* ====== Attendance Logs ====== */
+let todayLogs = [];
+async function refreshLogsView(){
+  const tbody = $('logsBody');
+  tbody.innerHTML = '';
+  todayLogs = [];
+  try{
+    const today = new Date().toISOString().split('T')[0];
+    const usersSnap = await db.ref('users').get();
+    if(!usersSnap.exists()){
+      tbody.innerHTML = '<tr><td colspan="3" class="muted">No users</td></tr>'; return;
+    }
+    let has=false;
+    usersSnap.forEach(uSnap => {
+      const uid = uSnap.key;
+      const profile = uSnap.child('profile').val() || {};
+      const dtr = uSnap.child(`dtr/${today}`).val();
+      if(dtr && dtr.timeIn){
+        has=true;
+        const name = profile.name || uid;
+        todayLogs.push({ name, date: today, timeIn: dtr.timeIn });
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${safeText(name)}</td><td>${today}</td><td>${safeText(dtr.timeIn)}</td>`;
+        tbody.appendChild(tr);
+      }
+    });
+    if(!has) tbody.innerHTML = '<tr><td colspan="3" class="muted">No logs today</td></tr>';
+  }catch(e){ console.error('refreshLogsView', e); tbody.innerHTML = '<tr><td colspan="3" class="muted">Error loading logs</td></tr>'; }
+}
+
+function exportLogs(){
+  if(!todayLogs.length){ alert('No logs to export'); return; }
+  let csv = 'Name,Date,Time In\n';
+  todayLogs.forEach(r => csv += `"${r.name.replace(/"/g,'""')}",${r.date},${r.timeIn}\n`);
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'attendance_logs_today.csv'; a.click(); URL.revokeObjectURL(a.href);
+}
+
+function printLogs(){
+  if(!todayLogs.length){ alert('No logs to print'); return; }
+  const html = `<html><head><title>Attendance Logs</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #333;padding:8px;text-align:center}</style></head><body><h2>Attendance Logs</h2><table><thead><tr><th>Name</th><th>Date</th><th>Time In</th></tr></thead><tbody>${todayLogs.map(r=>`<tr><td>${r.name}</td><td>${r.date}</td><td>${r.timeIn}</td></tr>`).join('')}</tbody></table></body></html>`;
+  const w = window.open('','_blank'); w.document.write(html); w.document.close(); w.print();
+}
+
+/* ====== Requests & Basket ====== */
+const requestsBody = $('requestsBody');
+const basketBody = $('basketBody');
+
+db.ref('updateRequests').on('value', snap => {
+  // render requests
+  requestsBody.innerHTML = '';
+  if(!snap.exists()){ requestsBody.innerHTML = '<tr><td colspan="5" class="muted">No requests</td></tr>'; return; }
+  const rows = [];
+  snap.forEach(userSnap => {
+    const uid = userSnap.key;
+    userSnap.forEach(reqSnap => {
+      const req = reqSnap.val();
+      rows.push({ uid, id: reqSnap.key, req });
+    });
+  });
+  if(rows.length === 0){ requestsBody.innerHTML = '<tr><td colspan="5" class="muted">No requests</td></tr>'; return; }
+  rows.forEach(async r => {
+    const profileSnap = await db.ref(`users/${r.uid}/profile`).get();
+    const profile = profileSnap.exists() ? profileSnap.val() : {};
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${safeText(profile.name||r.uid)}<br><span class="muted">${safeText(profile.email||'')}</span></td>
+      <td>${safeText(r.req.field)}</td>
+      <td>${safeText(r.req.value)}</td>
+      <td>${safeText(r.req.status||'pending')}</td>
+      <td>
+        <button class="primary" onclick="approveReq('${r.uid}','${r.id}','${r.req.field}','${encodeURIComponent(r.req.value)}')">Approve</button>
+        <button class="primary" onclick="rejectReq('${r.uid}','${r.id}')">Reject</button>
+      </td>`;
+    requestsBody.appendChild(tr);
+  });
+});
+
+async function approveReq(uid, reqId, field, encodedVal){
+  try{
+    const value = decodeURIComponent(encodedVal);
+    if(['name','email','clinicalLevel'].includes(field)) await db.ref(`users/${uid}/profile/${field}`).set(value);
+    const reqSnap = await db.ref(`updateRequests/${uid}/${reqId}`).get();
+    const reqData = reqSnap.exists() ? reqSnap.val() : {};
+    const profileSnap = await db.ref(`users/${uid}/profile`).get();
+    const profile = profileSnap.exists() ? profileSnap.val() : {};
+    await db.ref(`basket/approved/${reqId}`).set({ ...reqData, uid, name: profile.name||uid, email: profile.email||'', status:'approved', ts: Date.now() });
+    await db.ref(`updateRequests/${uid}/${reqId}`).remove();
+    alert('Approved');
+  }catch(e){ console.error('approveReq', e); alert('Approve failed'); }
+}
+
+async function rejectReq(uid, reqId){
+  try{
+    const reqSnap = await db.ref(`updateRequests/${uid}/${reqId}`).get();
+    const reqData = reqSnap.exists() ? reqSnap.val() : {};
+    const profileSnap = await db.ref(`users/${uid}/profile`).get();
+    const profile = profileSnap.exists() ? profileSnap.val() : {};
+    await db.ref(`basket/rejected/${reqId}`).set({ ...reqData, uid, name: profile.name||uid, email: profile.email||'', status:'rejected', ts: Date.now() });
+    await db.ref(`updateRequests/${uid}/${reqId}`).remove();
+    alert('Rejected');
+  }catch(e){ console.error('rejectReq', e); alert('Reject failed'); }
+}
+
+function showBasket(type){
+  const node = type === 'approved' ? db.ref('basket/approved') : db.ref('basket/rejected');
+  node.get().then(snap => {
+    if(!snap.exists()){ basketBody.innerHTML = `<tr><td colspan="4" class="muted">No ${type}</td></tr>`; return; }
+    const rows = [];
+    snap.forEach(child => {
+      const v = child.val();
+      rows.push(`<tr><td>${safeText(v.name||'')}</td><td>${safeText(v.field||'')}</td><td>${safeText(v.value||'')}</td><td>${safeText(v.status||'')}</td></tr>`);
+    });
+    basketBody.innerHTML = rows.join('');
+  }).catch(e => { console.error('showBasket', e); basketBody.innerHTML = '<tr><td colspan="4" class="muted">Error</td></tr>'; });
+}
+
+/* ====== Cases Table & Assign ====== */
+const casesBody = $('casesBody');
+
+async function loadCases(){
+  casesBody.innerHTML = '';
+  try{
+    const snap = await db.ref('cases').get();
+    if(!snap.exists()){ casesBody.innerHTML = '<tr><td colspan="6" class="muted">No cases found</td></tr>'; return; }
+    const data = snap.val();
+    const uids = Object.keys(data);
+    const profilePromises = uids.map(uid => db.ref(`users/${uid}/profile`).get().then(p => ({ uid, profile: p.exists() ? p.val() : {} })));
+    const profiles = await Promise.all(profilePromises);
+    const profileMap = {}; profiles.forEach(p => profileMap[p.uid] = p.profile || {});
+    const rows = [];
+    uids.forEach(uid => {
+      const userCases = data[uid] || {};
+      Object.keys(userCases).forEach(caseId => {
+        const c = userCases[caseId];
+        rows.push({
+          uid, caseId,
+          clinician: profileMap[uid].name || uid,
+          type: c.type || '',
+          details: c.details || '',
+          instructor: c.instructor || 'Pending',
+          date: c.timestamp || null
+        });
+      });
+    });
+    if(rows.length === 0){ casesBody.innerHTML = '<tr><td colspan="6" class="muted">No cases found</td></tr>'; return; }
+    casesBody.innerHTML = rows.map(r => `<tr>
+      <td>${safeText(r.clinician)}</td>
+      <td>${safeText(r.type)}</td>
+      <td class="left">${safeText(r.details)}</td>
+      <td>${safeText(r.instructor)}</td>
+      <td>${r.date ? new Date(r.date).toLocaleString() : '-'}</td>
+      <td>${r.instructor === 'Pending' ? `<button class="primary assignBtn" data-uid="${r.uid}" data-caseid="${r.caseId}">Assign Instructor</button>` : '—'}</td>
+    </tr>`).join('');
+  }catch(e){ console.error('loadCases', e); casesBody.innerHTML = '<tr><td colspan="6" class="muted">Error loading cases</td></tr>'; }
+}
+
+/* Export & Print cases */
+async function exportCases(){
+  const snap = await db.ref('cases').get();
+  if(!snap.exists()){ alert('No cases to export'); return; }
+  const data = snap.val();
+  const uids = Object.keys(data);
+  const pr = uids.map(uid => db.ref(`users/${uid}/profile`).get().then(p => ({ uid, profile: p.exists() ? p.val() : {} })));
+  const profiles = await Promise.all(pr);
+  const profileMap = {}; profiles.forEach(p => profileMap[p.uid] = p.profile || {});
+  const rows = [['Clinician','Type','Details','Instructor','Date']];
+  uids.forEach(uid => {
+    const userCases = data[uid] || {};
+    Object.keys(userCases).forEach(caseId => {
+      const c = userCases[caseId];
+      rows.push([profileMap[uid].name || uid, c.type||'', (c.details||'').replace(/\n/g,' '), c.instructor||'Pending', c.timestamp ? new Date(c.timestamp).toLocaleString() : '']);
+    });
+  });
+  const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'case_selections.csv'; a.click(); URL.revokeObjectURL(a.href);
+}
+
+async function printCases(){
+  const snap = await db.ref('cases').get();
+  if(!snap.exists()){ alert('No cases to print'); return; }
+  const data = snap.val(); const uids = Object.keys(data);
+  const pr = uids.map(uid => db.ref(`users/${uid}/profile`).get().then(p => ({ uid, profile: p.exists() ? p.val() : {} })));
+  const profiles = await Promise.all(pr); const profileMap = {}; profiles.forEach(p => profileMap[p.uid] = p.profile || {});
+  const rows = [];
+  uids.forEach(uid => {
+    const userCases = data[uid] || {};
+    Object.keys(userCases).forEach(caseId => {
+      const c = userCases[caseId];
+      rows.push({ clinician: profileMap[uid].name || uid, type: c.type||'', details: (c.details||'').replace(/\n/g,' '), instructor: c.instructor||'Pending', date: c.timestamp ? new Date(c.timestamp).toLocaleString() : '' });
+    });
+  });
+  const html = `<html><head><title>Case Selections</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #333;padding:8px;text-align:left}th{background:#f3f3f3}</style></head><body><h2>Case Selections</h2><table><thead><tr><th>Clinician</th><th>Type</th><th>Details</th><th>Instructor</th><th>Date</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.clinician}</td><td>${r.type}</td><td>${r.details}</td><td>${r.instructor}</td><td>${r.date}</td></tr>`).join('')}</tbody></table></body></html>`;
+  const w = window.open('','_blank'); w.document.write(html); w.document.close(); w.print();
+}
+
+/* ====== Instructors CRUD ====== */
+async function loadInstructors(){
+  const tbody = $('instructorsBody');
+  tbody.innerHTML = '';
+  try{
+    const snap = await db.ref('instructors').get();
+    if(!snap.exists()){ tbody.innerHTML = '<tr><td colspan="2" class="muted">No instructors</td></tr>'; return; }
+    snap.forEach(child => {
+      const id = child.key, name = child.val();
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${safeText(name)}</td><td><button class="primary" onclick="removeInstructor('${id}')">Remove</button></td>`;
+      tbody.appendChild(tr);
+    });
+  }catch(e){ console.error('loadInstructors', e); $('instructorsBody').innerHTML = '<tr><td colspan="2" class="muted">Error</td></tr>'; }
+}
+
+async function addInstructor(){
+  const name = ($('newInstructor')?.value || '').trim();
+  if(!name){ alert('Enter instructor name'); return; }
+  try{
+    await db.ref('instructors').push(name);
+    $('newInstructor').value = '';
+    loadInstructors();
+    alert('Instructor added');
+  }catch(e){ console.error('addInstructor', e); alert('Failed to add'); }
+}
+
+async function removeInstructor(id){
+  if(!confirm('Remove this instructor?')) return;
+  try{
+    await db.ref(`instructors/${id}`).remove();
+    loadInstructors();
+  }catch(e){ console.error('removeInstructor', e); alert('Failed to remove'); }
+}
+
+/* ====== Spin-the-Wheel Implementation ====== */
+const wheelCanvas = $('wheelCanvas');
+const ctx = wheelCanvas.getContext('2d');
+let wheelNames = [];
+let wheelCaseUid = null, wheelCaseId = null;
+let isSpinning = false;
+let currentRotation = 0;
+
+function fitWheelCanvas(){
+  const canvas = wheelCanvas;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const size = Math.min(rect.width, 560) || 400;
+  canvas.width = Math.floor(size * dpr);
+  canvas.height = Math.floor(size * dpr);
+  canvas.style.width = size + 'px';
+  canvas.style.height = size + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function drawWheel(rotation){
+  const canvas = wheelCanvas;
+  const w = canvas.width / (window.devicePixelRatio || 1);
+  const h = canvas.height / (window.devicePixelRatio || 1);
+  const cx = w/2, cy = h/2;
+  const r = Math.min(cx, cy) - 8;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const n = Math.max(1, wheelNames.length);
+  const arc = (2*Math.PI)/n;
+  for(let i=0;i<n;i++){
+    const start = i*arc + rotation;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,start,start+arc);
+    ctx.closePath();
+    ctx.fillStyle = i%2===0 ? '#ffb6f9' : '#a855f7';
+    ctx.fill();
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(start + arc/2);
+    ctx.textAlign = 'right'; ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Arial';
+    const txt = wheelNames[i] || '';
+    const label = txt.length > 24 ? txt.slice(0,21) + '…' : txt;
+    ctx.fillText(label, r - 10, 6);
+    ctx.restore();
+  }
+  // pointer
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.moveTo(cx - 12, cy - r - 8);
+  ctx.lineTo(cx + 12, cy - r - 8);
+  ctx.lineTo(cx, cy - r + 22);
+  ctx.closePath(); ctx.fill();
+}
+
+async function openWheel(uid, caseId){
+  wheelCaseUid = uid; wheelCaseId = caseId;
+  $('wheelResult').textContent = '';
+  $('confirmAssignBtn').style.display = 'none';
+  try{
+    const snap = await db.ref('instructors').get();
+    wheelNames = [];
+    if(snap.exists()) snap.forEach(c => wheelNames.push(c.val()));
+    if(wheelNames.length === 0){ alert('No instructors available. Add instructors first.'); return; }
+    fitWheelCanvas();
+    currentRotation = 0;
+    drawWheel(0);
+    $('wheelModal').style.display = 'flex';
+  }catch(e){ console.error('openWheel', e); alert('Failed to open wheel'); }
+}
+
+function spinWheel(){
+  if(isSpinning) return;
+  if(!wheelNames.length) return alert('No instructors to pick.');
+  isSpinning = true;
+  $('wheelResult').textContent = 'Spinning...';
+  $('confirmAssignBtn').style.display = 'none';
+  const n = wheelNames.length;
+  const arc = (2*Math.PI)/n;
+  const finalIndex = Math.floor(Math.random() * n);
+  const rotations = 6 + Math.floor(Math.random()*4);
+  const finalAngle = (2*Math.PI * rotations) + ((n - finalIndex) * arc) - (arc/2);
+  const duration = 3600;
+  const start = performance.now();
+  const startRot = currentRotation || 0;
+
+  function animate(now){
+    const t = Math.min(1, (now - start) / duration);
+    const ease = 1 - Math.pow(1 - t, 3);
+    currentRotation = startRot + (finalAngle - startRot) * ease;
+    drawWheel(currentRotation);
+    if(t < 1) requestAnimationFrame(animate);
+    else {
+      isSpinning = false;
+      const normalized = ((currentRotation % (2*Math.PI)) + (2*Math.PI)) % (2*Math.PI);
+      const idx = Math.floor((2*Math.PI - normalized + (arc/2)) / arc) % n;
+      const selected = wheelNames[idx];
+      $('wheelResult').textContent = 'Selected: ' + selected;
+      $('confirmAssignBtn').style.display = 'inline-block';
+      $('confirmAssignBtn').dataset.selected = selected;
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+$('spinWheelBtn').onclick = spinWheel;
+
+async function confirmAssign(){
+  const selected = $('confirmAssignBtn').dataset.selected;
+  if(!selected) return alert('No instructor selected');
+  if(!wheelCaseUid || !wheelCaseId) return alert('No case target');
+  try{
+    await db.ref(`cases/${wheelCaseUid}/${wheelCaseId}/instructor`).set(selected);
+    $('wheelModal').style.display = 'none';
+    await loadCases();
+    alert(`Assigned ${selected}`);
+  }catch(e){ console.error('confirmAssign', e); alert('Assign failed'); }
+}
+
+function closeWheel(){ $('wheelModal').style.display = 'none'; }
+
+/* Event delegation for Assign buttons inside cases table */
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.assignBtn');
+  if(!btn) return;
+  const uid = btn.dataset.uid;
+  const caseId = btn.dataset.caseid;
+  if(!uid || !caseId){ console.error('assignBtn missing data', btn); return; }
+  openWheel(uid, caseId);
+});
+
+/* ===== Sidebar & modal controls ===== */
+$('sidebarScanner').onclick = () => { hideAllSections(); $('scannerCard').style.display='block'; setActive('sidebarScanner'); };
+$('sidebarLogs').onclick = () => { hideAllSections(); $('logsSection').style.display='block'; refreshLogsView(); setActive('sidebarLogs'); };
+$('sidebarRequests').onclick = () => { hideAllSections(); $('requestsSection').style.display='block'; setActive('sidebarRequests'); };
+$('sidebarBasket').onclick = () => { hideAllSections(); $('basketSection').style.display='block'; setActive('sidebarBasket'); };
+$('sidebarCases').onclick = () => { hideAllSections(); $('casesSection').style.display='block'; loadCases(); setActive('sidebarCases'); };
+$('sidebarInstructors').onclick = () => { hideAllSections(); $('instructorsSection').style.display='block'; loadInstructors(); setActive('sidebarInstructors'); };
+
+function setActive(id){
+  document.querySelectorAll('.sidebar button').forEach(b => b.classList.remove('active'));
+  $(id).classList.add('active');
+}
+function hideAllSections(){
+  ['scannerCard','logsSection','requestsSection','basketSection','casesSection','instructorsSection'].forEach(id => { const el = $(id); if(el) el.style.display='none'; });
+}
+
+/* Realtime listeners to keep UI fresh */
+db.ref('users').on('value', ()=> refreshLogsView());
+db.ref('cases').on('value', ()=> { if($('casesSection').style.display !== 'none') loadCases(); });
+db.ref('instructors').on('value', ()=> { if($('instructorsSection').style.display !== 'none') loadInstructors(); });
+
+/* Initial state */
+hideAllSections();
+$('scannerCard').style.display = 'block';
+setActive('sidebarScanner');
+
+/* Responsive: fit wheel on resize */
+window.addEventListener('resize', ()=> { try{ fitWheelCanvas(); drawWheel(currentRotation || 0); }catch(e){} });
+setTimeout(()=>{ try{ fitWheelCanvas(); drawWheel(0); }catch(e){} }, 200);
+
+/* Expose some functions globally (for inline onclicks) */
+window.startScanner = startScanner;
+window.stopScanner = stopScanner;
+window.refreshLogsView = refreshLogsView;
+window.exportLogs = exportLogs;
+window.printLogs = printLogs;
+window.loadCases = loadCases;
+window.exportCases = exportCases;
+window.printCases = printCases;
+window.addInstructor = addInstructor;
+window.removeInstructor = removeInstructor;
+window.showBasket = showBasket;
+window.approveReq = approveReq;
+window.rejectReq = rejectReq;
+window.openWheel = openWheel;
+window.spinWheel = spinWheel;
+window.confirmAssign = confirmAssign;
+window.closeWheel = closeWheel;
+</script>
+</html>
