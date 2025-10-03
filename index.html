@@ -136,7 +136,7 @@
 <body>
   <div class="sidebar">
     <div class="logo-container">
-      <img src="your-logo.png" alt="Logo" class="logo">
+      <img src="college-logo.png" alt="Logo" class="logo">
       <h1 class="app-title">Admin Panel</h1>
     </div>
     <button id="sidebarScanner" class="active">📷 Scanner</button>
@@ -230,7 +230,17 @@
         <tbody id="casesBody"></tbody>
       </table>
     </div>
-    <!-- Instructor Management -->
+    
+
+    <!-- Spin the Wheel Modal -->
+    <div id="wheelModal" class="modal">
+      <div class="modal-content">
+        <h2>Spin the Wheel</h2>
+        <canvas id="wheelCanvas" width="400" height="400"></canvas>
+        <div style="margin-top:15px;text-align:center">
+          <button class="primary" onclick="spinWheel()">Spin</button>
+          <button class="primary" onclick="confirmAssign()">Confirm Assign</button>
+          <butt<!-- Instructor Management -->
     <div id="instructorsSection" class="card" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <h2>Instructor Management</h2>
@@ -246,20 +256,7 @@
         <tbody id="instructorsBody"></tbody>
       </table>
     </div>
-
-    <!-- Spin the Wheel Modal -->
-    <div id="wheelModal" class="modal">
-      <div class="modal-content">
-        <h2>Spin the Wheel</h2>
-        <canvas id="wheelCanvas" width="400" height="400"></canvas>
-        <div style="margin-top:15px;text-align:center">
-          <button class="primary" onclick="spinWheel()">Spin</button>
-          <button class="primary" onclick="confirmAssign()">Confirm Assign</button>
-          <button class="primary" onclick="closeWheel()">Close</button>
-        </div>
-        <p id="wheelResult" style="margin-top:15px;font-weight:bold;text-align:center"></p>
-      </div>
-    </div>
+            
     <!-- Part 4: JavaScript -->
 <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
@@ -295,7 +292,7 @@ async function startScanner(){
     const devices = await codeReader.listVideoInputDevices();
     if(!devices || devices.length === 0){ scanStatus.textContent = "No camera found"; return; }
     const back = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
-    codeReader.decodeFromVideoDevice(back.deviceId, preview, (result, err) => {
+    codeReader.decodeFromVideoDevice(back.deviceId,eview, (result, err) => {
       if(result && result.getText) handleScan(result.getText());
       if(err && !(err instanceof ZXing.NotFoundException)) {
         // NotFoundException is common while scanning; just ignore
