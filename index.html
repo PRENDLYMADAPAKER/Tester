@@ -345,51 +345,7 @@
     } catch(e){ console.error(e); showToast('Scan error','error',2000); }
   }
 
-  // ===== Attendance admin view =====
-  async function loadTodayLogs() {
-  const body = $('logsBody'); 
-  if (!body) return;
-  body.innerHTML = '';
-
-  const today = getPHDateString();
-  const snap = await db.ref(`adminLogs/${today}`).get();
-
-  if (!snap.exists()) {
-    body.innerHTML = '<tr><td colspan="3" class="muted">No logs today</td></tr>';
-    return;
-  }
-
-  const rows = [];
-
-  // 🔥 Loop one level deeper (for multiple logs per user)
-  snap.forEach(userSnap => {
-    const uid = userSnap.key;
-    userSnap.forEach(logSnap => {
-      const log = logSnap.val() || {};
-      rows.push({
-        uid,
-        name: log.name || uid,
-        timeIn: log.timeIn || '-',
-        timestamp: log.timestamp || 0
-      });
-    });
-  });
-
-  // Sort by timestamp (latest first)
-  rows.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-  if (rows.length === 0) {
-    body.innerHTML = '<tr><td colspan="3" class="muted">No logs today</td></tr>';
-    return;
-  }
-
-  // Render table
-  rows.forEach(r => {
-    const time = r.timeIn;
-    body.innerHTML += `<tr><td>${r.name || r.uid}</td><td>${today}</td><td>${time}</td></tr>`;
-  });
-      }
-
+  // ===== Attendance admin view ====//
   async function exportLogs(){
     const snap = await db.ref('adminLogs').get();
     if(!snap.exists()){ showToast('No admin logs to export','warning'); return; }
@@ -403,7 +359,53 @@
   async function printLogs(){
     const snap = await db.ref('adminLogs').get();
     if(!snap.exists()){ showToast('No admin logs to print','warning'); return; }
-    let rowsHtml=''; snap.forEach(dateSnap=>{ const date = dateSnap.key; dateSnap.forEach(uSnap=>{ const v=uSnap.val(); rowsHtml += `<tr><td>${date}</td><td>${v.name||''}</td><td>${v.email||''}</td><td>${v.level||''}</td><td>${v.timeIn||''}</td></tr>`; }); });
+    let rowsHtml=''; snap.forEach(dateSnap=>{ const date = dateSnap.key; dateSnap.forEach(uSnap=>{ const v=uasync function loadTodayLogs() {
+  const body = $('logsBody'); 
+  if (!body) return;
+  body.innerHTML = '';
+
+  const today = getPHDateString(); // ✅ Only today's date
+  const snap = await db.ref(`adminLogs/${today}`).get();
+
+  if (!snap.exists()) {
+    body.innerHTML = '<tr><td colspan="3" class="muted">No logs today</td></tr>';
+    return;
+  }
+
+  const rows = [];
+
+  // 🔥 Loop through users and their logs for today only
+  snap.forEach(userSnap => {
+    const uid = userSnap.key;
+    userSnap.forEach(logSnap => {
+      const log = logSnap.val() || {};
+      rows.push({
+        uid,
+        name: log.name || 'Unknown User',
+        timeIn: log.timeIn || '-',
+        timestamp: log.timestamp || 0
+      });
+    });
+  });
+
+  // Sort newest first
+  rows.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+  if (rows.length === 0) {
+    body.innerHTML = '<tr><td colspan="3" class="muted">No logs today</td></tr>';
+    return;
+  }
+
+  // Render today's table using real names
+  rows.forEach(r => {
+    body.innerHTML += `
+      <tr>
+        <td>${r.name}</td>
+        <td>${today}</td>
+        <td>${r.timeIn}</td>
+      </tr>`;
+  });
+      }Snap.val(); rowsHtml += `<tr><td>${date}</td><td>${v.name||''}</td><td>${v.email||''}</td><td>${v.level||''}</td><td>${v.timeIn||''}</td></tr>`; }); });
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Attendance Logs</title><style>body{font-family:Poppins,Arial;padding:20px;color:#1f1238}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f6f0fb}</style></head><body><h2>Attendance Logs</h2><table><thead><tr><th>Date</th><th>Name</th><th>Email</th><th>Level</th><th>Time In</th></tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`;
     const w = window.open('','_blank'); w.document.write(html); w.document.close(); w.print();
     showToast('Print dialog opened','success');
