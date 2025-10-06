@@ -266,7 +266,13 @@
     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
     return new Date(utc + (3600000 * 8));
   }
-  function getPHDateString(now = new Date()){ return getPHDate(now).toISOString().split('T')[0]; }
+  function getPHDateString(now = new Date()) {
+  const ph = getPHDate(now);
+  const y = ph.getFullYear();
+  const m = String(ph.getMonth() + 1).padStart(2, '0');
+  const d = String(ph.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+      }
   function phTimeString(now = new Date()){
     return getPHDate(now).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', hour12: false });
   }
