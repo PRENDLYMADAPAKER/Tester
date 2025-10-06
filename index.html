@@ -840,7 +840,8 @@
     if ($('doneAssignModal') && $('doneAssignModal').style.display === 'flex') loadDoneAssign();
   });
 
-  // initial load
+  // ✅ INITIAL LOAD — now includes Attendance Logs
+  loadTodayLogs();   // <— 🟢 This line populates the Attendance table on page load
   loadCases();
   loadDoneAssign();
 
