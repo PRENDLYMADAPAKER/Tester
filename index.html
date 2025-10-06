@@ -347,11 +347,11 @@
 
   // ===== Attendance admin view =====
   async function loadTodayLogs() {
-  const body = $('logsBody'); 
+  const body = $('logsBody');
   if (!body) return;
   body.innerHTML = '';
 
-  const today = getPHDateString(); // ✅ Only today's date
+  const today = getPHDateString(); // Only today's date
   const snap = await db.ref(`adminLogs/${today}`).get();
 
   if (!snap.exists()) {
@@ -361,21 +361,20 @@
 
   const rows = [];
 
-  // 🔥 Loop through users and their logs for today only
+  // 🔥 Each user has a single flat record
   snap.forEach(userSnap => {
-    const uid = userSnap.key;
-    userSnap.forEach(logSnap => {
-      const log = logSnap.val() || {};
-      rows.push({
-        uid,
-        name: log.name || 'Unknown User',
-        timeIn: log.timeIn || '-',
-        timestamp: log.timestamp || 0
-      });
+    const log = userSnap.val() || {};
+    rows.push({
+      uid: userSnap.key,
+      name: log.name || 'Unknown User',
+      email: log.email || '',
+      level: log.level || '',
+      timeIn: log.timeIn || '-',
+      timestamp: log.ts || log.timestamp || 0
     });
   });
 
-  // Sort newest first
+  // Sort by timestamp (latest first)
   rows.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
   if (rows.length === 0) {
@@ -383,7 +382,7 @@
     return;
   }
 
-  // Render today's table using real names
+  // Render table — show Name instead of UID
   rows.forEach(r => {
     body.innerHTML += `
       <tr>
@@ -392,7 +391,7 @@
         <td>${r.timeIn}</td>
       </tr>`;
   });
-}
+      }
 
   async function exportLogs(){
     const snap = await db.ref('adminLogs').get();
