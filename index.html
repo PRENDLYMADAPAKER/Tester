@@ -346,17 +346,49 @@
   }
 
   // ===== Attendance admin view =====
-  async function loadTodayLogs(){
-    const body = $('logsBody'); if(!body) return;
-    body.innerHTML = '';
-    const today = getPHDateString();
-    const snap = await db.ref(`adminLogs/${today}`).get();
-    if(!snap.exists()){ body.innerHTML = '<tr><td colspan="3" class="muted">No logs today</td></tr>'; return; }
-    const rows = [];
-    snap.forEach(uSnap => rows.push({ uid: uSnap.key, ...(uSnap.val()||{}) }));
-    if(rows.length === 0){ body.innerHTML = '<tr><td colspan="3" class="muted">No logs today</td></tr>'; return; }
-    rows.forEach(r => { body.innerHTML += `<tr><td>${r.name||r.uid}</td><td>${today}</td><td>${r.timeIn||'-'}</td></tr>`; });
+  async function loadTodayLogs() {
+  const body = $('logsBody'); 
+  if (!body) return;
+  body.innerHTML = '';
+
+  const today = getPHDateString();
+  const snap = await db.ref(`adminLogs/${today}`).get();
+
+  if (!snap.exists()) {
+    body.innerHTML = '<tr><td colspan="3" class="muted">No logs today</td></tr>';
+    return;
   }
+
+  const rows = [];
+
+  // 🔥 Loop one level deeper (for multiple logs per user)
+  snap.forEach(userSnap => {
+    const uid = userSnap.key;
+    userSnap.forEach(logSnap => {
+      const log = logSnap.val() || {};
+      rows.push({
+        uid,
+        name: log.name || uid,
+        timeIn: log.timeIn || '-',
+        timestamp: log.timestamp || 0
+      });
+    });
+  });
+
+  // Sort by timestamp (latest first)
+  rows.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+  if (rows.length === 0) {
+    body.innerHTML = '<tr><td colspan="3" class="muted">No logs today</td></tr>';
+    return;
+  }
+
+  // Render table
+  rows.forEach(r => {
+    const time = r.timeIn;
+    body.innerHTML += `<tr><td>${r.name || r.uid}</td><td>${today}</td><td>${time}</td></tr>`;
+  });
+      }
 
   async function exportLogs(){
     const snap = await db.ref('adminLogs').get();
@@ -520,15 +552,21 @@
   function promptAssignInput(uid,cid){ const name = prompt('Type instructor name to assign:'); if(name && name.trim()) assignInstructorByInput(uid,cid,name.trim()); }
   async function markCaseComplete(uid, cid){ try{ await db.ref(`cases/${uid}/${cid}/status`).set('completed'); const userCaseSnap = await db.ref(`userCases/${uid}/${cid}`).get(); if(userCaseSnap.exists()) await db.ref(`userCases/${uid}/${cid}/status`).set('completed'); showToast('Case marked completed','success'); loadCases(); }catch(e){console.error(e);showToast('Failed','error');} }
 
-  async function deleteCase(uid,cid){
-    if(!confirm("Delete this case permanently (admin + user side)?")) return;
-    try{
-      await db.ref(`cases/${uid}/${cid}`).remove();
-      await db.ref(`userCases/${uid}/${cid}`).remove();
-      showToast("Case deleted successfully","success");
-      loadCases();
-    }catch(e){ console.error(e); showToast("Delete failed","error"); }
+  async function deleteCase(uid, cid) {
+  if (!confirm("Delete this case permanently for admin and user?")) return;
+  try {
+    await Promise.all([
+      db.ref(`cases/${uid}/${cid}`).remove(),
+      db.ref(`userCases/${uid}/${cid}`).remove(),
+      db.ref(`doneAssign/${uid}/${cid}`).remove() // safety: also remove if already assigned
+    ]);
+    showToast("✅ Case deleted from both admin & user sides", "success");
+    loadCases();
+  } catch (e) {
+    console.error(e);
+    showToast("Delete failed", "error");
   }
+      }
 
   async function exportCases(){
     const snap = await db.ref('cases').get();
@@ -797,14 +835,20 @@
   }
 
   async function deleteDoneAssigned(uid, cid) {
-    if (!confirm("Delete this Done-Assigned case permanently (admin + user side)?")) return;
-    try {
-      await db.ref(`doneAssign/${uid}/${cid}`).remove();
-      await db.ref(`userCases/${uid}/${cid}`).remove();
-      showToast("Done-Assigned case deleted", "success");
-      loadDoneAssign();
-    } catch (e) { console.error(e); showToast("Delete failed", "error"); }
+  if (!confirm("Delete this Done-Assigned case permanently for admin and user?")) return;
+  try {
+    await Promise.all([
+      db.ref(`doneAssign/${uid}/${cid}`).remove(),  // remove from admin Done Assigned
+      db.ref(`userCases/${uid}/${cid}`).remove(),   // remove from user panel
+      db.ref(`cases/${uid}/${cid}`).remove()        // remove any old pending record
+    ]);
+    showToast("✅ Done-Assigned case deleted from both admin & user sides", "success");
+    loadDoneAssign();
+  } catch (e) {
+    console.error(e);
+    showToast("Delete failed", "error");
   }
+      }
 
   /************  SEARCH & LIVE LISTENERS  ************/
   if ($('caseSearch')) $('caseSearch').addEventListener('input', () => {
