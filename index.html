@@ -36,8 +36,25 @@
 
     /* Header - fixed logo and single-color title */
     .header{ width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; margin-top:6px; }
-    .logoWrap{ width:140px; height:140px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.95); box-shadow:0 8px 26px rgba(106,27,154,0.08); padding:8px; }
-    .logoWrap img{ width:100%; height:100%; object-fit:contain; display:block; filter:none; opacity:1; border-radius:50%; }
+    .logoWrap {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 8px 26px rgba(106, 27, 154, 0.08);
+  overflow: hidden; /* prevents any image edge overflow */
+}
+
+.logoWrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* fills circle perfectly */
+  border-radius: 50%;
+  display: block;
+}
     .title{ text-align:center; color:var(--accent); font-weight:700; font-size:1.9rem; line-height:1.05; margin:0; }
 
     /* Card */
