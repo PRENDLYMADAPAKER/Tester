@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guidance Appointment Scheduling</title>
+  <link rel="icon" href="logo.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #f8e9ff, #ffe6f0, #f2e6ff);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      background: white;
+      width: 95%;
+      max-width: 420px;
+      padding: 25px 30px;
+      border-radius: 20px;
+      box-shadow: 0 6px 25px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    .header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .header img {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 10px;
+    }
+
+    .header h1 {
+      font-size: 1.3rem;
+      color: #5a2d82;
+      font-weight: 700;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+      text-align: left;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 0.9rem;
+      color: #5a2d82;
+      font-weight: 600;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #e0c7ff;
+      border-radius: 10px;
+      outline: none;
+      transition: 0.2s;
+      font-size: 0.9rem;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: #8a4fff;
+    }
+
+    button {
+      background: linear-gradient(135deg, #8a4fff, #b76eff);
+      color: white;
+      border: none;
+      width: 100%;
+      padding: 12px;
+      border-radius: 30px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: 0.3s;
+      font-weight: 600;
+    }
+
+    button:hover {
+      background: linear-gradient(135deg, #7a3ae0, #a84ff0);
+    }
+
+    .note {
+      font-size: 0.8rem;
+      margin-top: 10px;
+      color: #5a2d82;
+      text-align: center;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="logo.png" alt="Logo" />
+      <h1>Guidance Appointment Scheduling</h1>
+    </div>
+
+    <form id="appointmentForm">
+      <div class="form-group">
+        <label>Full name</label>
+        <input type="text" id="name" required />
+      </div>
+
+      <div class="form-group">
+        <label>Email address</label>
+        <input type="email" id="email" required />
+      </div>
+
+      <div class="form-group">
+        <label>Phone (e.g. +63)</label>
+        <input type="tel" id="phone" required pattern="^\+63\d{10}$" />
+      </div>
+
+      <div class="form-group">
+        <label>Service</label>
+        <select id="service" required>
+          <option value="">Select service</option>
+          <option value="Counseling">Counseling</option>
+          <option value="Career Guidance">Career Guidance</option>
+          <option value="Clearance Signing">Clearance Signing</option>
+          <option value="Other Concerns">Other Concerns</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="date" required />
+      </div>
+
+      <div class="form-group">
+        <label>Select Time</label>
+        <select id="time" required>
+          <option value="">Select time</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Notes (optional)</label>
+        <textarea id="notes" rows="2"></textarea>
+      </div>
+
+      <button type="submit">Submit Appointment</button>
+
+      <p class="note">
+        Pick a date and the time slots will load automatically.  
+        Booked slots are disabled.
+      </p>
+    </form>
+  </div>
+
+  <!-- Firebase + EmailJS (Part 2 next) -->
+  <!-- Firebase + Booking Logic -->
+  <script type="module">
+    // ✅ Import Firebase modules
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+    // ✅ Your Firebase config (new)
+    const firebaseConfig = {
+      apiKey: "AIzaSyCstDdbOAisSEZzu9FT9Zyzl_pj5-RHBnA",
+      authDomain: "guidance-appointment.firebaseapp.com",
+      databaseURL: "https://guidance-appointment-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "guidance-appointment",
+      storageBucket: "guidance-appointment.firebasestorage.app",
+      messagingSenderId: "280009961139",
+      appId: "1:280009961139:web:f0863f2e5940be5e534ac6",
+      measurementId: "G-2MCGGLRTML"
+    };
+
+    // ✅ Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // ✅ HTML elements
+    const dateInput = document.getElementById("date");
+    const timeSelect = document.getElementById("time");
+    const form = document.getElementById("appointmentForm");
+
+    // ✅ Available time slots (except 12–1 PM)
+    const allTimeSlots = [
+      "08:00 AM - 09:00 AM",
+      "09:00 AM - 10:00 AM",
+      "10:00 AM - 11:00 AM",
+      "11:00 AM - 12:00 NN",
+      "01:00 PM - 02:00 PM",
+      "02:00 PM - 03:00 PM",
+      "03:00 PM - 04:00 PM",
+      "04:00 PM - 05:00 PM"
+    ];
+
+    // ✅ Load available time slots for selected date
+    dateInput.addEventListener("change", () => {
+      const selectedDate = dateInput.value;
+      timeSelect.innerHTML = `<option value="">Loading...</option>`;
+
+      if (!selectedDate) return;
+
+      const appointmentsRef = ref(db, "appointments/" + selectedDate);
+      onValue(appointmentsRef, (snapshot) => {
+        const bookedSlots = [];
+        snapshot.forEach((child) => {
+          bookedSlots.push(child.val().time);
+        });
+
+        // Update time dropdown
+        timeSelect.innerHTML = `<option value="">Select time</option>`;
+        allTimeSlots.forEach((slot) => {
+          const option = document.createElement("option");
+          option.value = slot;
+          option.textContent = slot;
+
+          if (bookedSlots.includes(slot)) {
+            option.disabled = true;
+            option.style.color = "#999";
+            option.textContent += " (Booked)";
+          }
+
+          timeSelect.appendChild(option);
+        });
+      });
+    });
+
+    // ✅ Handle form submit
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const service = document.getElementById("service").value;
+      const date = document.getElementById("date").value;
+      const time = document.getElementById("time").value;
+      const notes = document.getElementById("notes").value.trim();
+
+      if (!date || !time) {
+        alert("Please select both a date and a time.");
+        return;
+      }
+
+      const appointmentData = { name, email, phone, service, date, time, notes, status: "Pending" };
+
+      // ✅ Save to Firebase under date node
+      const appointmentRef = ref(db, "appointments/" + date);
+      push(appointmentRef, appointmentData)
+        .then(() => {
+          alert("✅ Appointment booked successfully!");
+          form.reset();
+          timeSelect.innerHTML = `<option value="">Select time</option>`;
+        })
+        .catch((error) => {
+          console.error("Error saving data:", error);
+          alert("❌ Something went wrong. Please try again.");
+        });
+    });
+  </script>
+  <!-- EmailJS + Confirmation Popup -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script>
+    // ✅ Initialize EmailJS
+    (function () {
+      emailjs.init("xvStFrKI-3M-3ZCvz"); // Your Public Key
+    })();
+
+    // ✅ Listen for successful booking to send confirmation
+    document.getElementById("appointmentForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const service = document.getElementById("service").value;
+      const date = document.getElementById("date").value;
+      const time = document.getElementById("time").value;
+
+      // Wait a bit to ensure Firebase save is done (already handled in Part 2)
+      setTimeout(async () => {
+        try {
+          await emailjs.send("service_qtacvtn", "template_ewvtufi", {
+            name,
+            service,
+            date,
+            time,
+            email
+          });
+
+          showSuccessModal();
+        } catch (err) {
+          console.error("Email failed:", err);
+          alert("⚠️ Appointment saved but failed to send confirmation email.");
+        }
+      }, 1000);
+    });
+
+    // ✅ Confirmation Popup
+    function showSuccessModal() {
+      const modal = document.createElement("div");
+      modal.innerHTML = `
+        <div class="modal-overlay">
+          <div class="modal-box">
+            <h2>✅ Appointment Confirmed!</h2>
+            <p>Thank you for booking your appointment.</p>
+            <p>A confirmation email has been sent to you.</p>
+            <button id="okBtn">OK</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      document.getElementById("okBtn").addEventListener("click", () => location.reload());
+    }
+  </script>
+
+  <!-- Modal & Header Glow Styles -->
+  <style>
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-box {
+      background: white;
+      padding: 25px 30px;
+      border-radius: 15px;
+      text-align: center;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+      animation: popIn 0.3s ease;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-box h2 {
+      color: #5a2d82;
+      margin-bottom: 10px;
+    }
+
+    .modal-box button {
+      margin-top: 15px;
+      background: linear-gradient(135deg, #8a4fff, #b76eff);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.3s;
+    }
+
+    .modal-box button:hover {
+      background: linear-gradient(135deg, #7a3ae0, #a84ff0);
+    }
+
+    /* ✨ Header Glow Effect */
+    .header {
+      position: relative;
+      padding: 15px 0;
+    }
+
+    .header::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 140px;
+      height: 140px;
+      background: url('https://i.imgur.com/1EOyoBG.png') no-repeat center/cover;
+      opacity: 0.15;
+      z-index: -1;
+      border-radius: 50%;
+      filter: blur(1px);
+      animation: floatGlow 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes floatGlow {
+      from { transform: translateX(-50%) translateY(-4px) scale(1.02); opacity: 0.1; }
+      to { transform: translateX(-50%) translateY(4px) scale(1.08); opacity: 0.2; }
+    }
+  </style>
+</body>
+</html>
