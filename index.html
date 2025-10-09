@@ -9,89 +9,72 @@
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
   <script type="module">
-    // ------------------ Firebase Setup ------------------
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyCstDdbOAisSEZzu9FT9Zyzl_pj5-RHBnA",
-      authDomain: "guidance-appointment.firebaseapp.com",
-      databaseURL: "https://guidance-appointment-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "guidance-appointment",
-      storageBucket: "guidance-appointment.firebasestorage.app",
-      messagingSenderId: "280009961139",
-      appId: "1:280009961139:web:f0863f2e5940be5e534ac6",
-      measurementId: "G-2MCGGLRTML"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    // ------------------ EmailJS Setup ------------------
-    emailjs.init("xvStFrKI-3M-3ZCvz"); // 🟢 Replace with your EmailJS Public Key
-
-    // ------------------ Form Handling ------------------
-    document.addEventListener("DOMContentLoaded", () => {
-      const form = document.getElementById("appointmentForm");
-      const sectionForm = document.getElementById("formSection");
-      const sectionConfirm = document.getElementById("confirmationSection");
-      const bookBtn = document.getElementById("bookNowBtn");
-      const landing = document.getElementById("landingSection");
-
-      bookBtn.addEventListener("click", () => {
-        landing.style.display = "none";
-        sectionForm.style.display = "block";
-      });
-
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const name = document.getElementById("name").value;
-        const email = document.getElementById("email").value;
-        const phone = document.getElementById("phone").value;
-        const service = document.getElementById("service").value;
-        const date = document.getElementById("date").value;
-        const time = document.getElementById("time").value;
-        const notes = document.getElementById("notes").value;
-
-        try {
-          // Save to Firebase
-          const appointmentRef = ref(db, "appointments");
-          const newAppointment = push(appointmentRef);
-          await set(newAppointment, {
-            name,
-            email,
-            phone,
-            service,
-            date,
-            time,
-            notes,
-            status: "pending",
-            timestamp: Date.now()
-          });
-
-          // Send Email Confirmation
-          const emailParams = {
-            name,
-            email,
-            service,
-            date,
-            time
-          };
-
-          await emailjs.send("service_jcdce0j", "template_ewvtufi", emailParams); // 🟢 Replace with your EmailJS IDs
-
-          // Show confirmation
-          sectionForm.style.display = "none";
-          sectionConfirm.style.display = "block";
-          form.reset();
-        } catch (error) {
-          alert("Error: " + error.message);
-        }
-      });
-    });
+    
   </script>
+// ------------------ EmailJS Setup ------------------
+emailjs.init("xvStFrKI-3M-3ZCvz"); // Your EmailJS Public Key
 
+// ------------------ Form Handling ------------------
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("appointmentForm");
+  const sectionForm = document.getElementById("formSection");
+  const sectionConfirm = document.getElementById("confirmationSection");
+  const bookBtn = document.getElementById("bookNowBtn");
+  const landing = document.getElementById("landingSection");
+
+  bookBtn.addEventListener("click", () => {
+    landing.style.display = "none";
+    sectionForm.style.display = "block";
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const name = document.getElementById("name").value;
+    const email = document.getElementById("email").value;
+    const phone = document.getElementById("phone").value;
+    const service = document.getElementById("service").value;
+    const date = document.getElementById("date").value;
+    const time = document.getElementById("time").value;
+    const notes = document.getElementById("notes").value;
+
+    try {
+      // Save to Firebase
+      const appointmentRef = ref(db, "appointments");
+      const newAppointment = push(appointmentRef);
+      await set(newAppointment, {
+        name,
+        email,
+        phone,
+        service,
+        date,
+        time,
+        notes,
+        status: "pending",
+        timestamp: Date.now()
+      });
+
+      // Send Email Confirmation
+      const emailParams = {
+        name,
+        email,
+        service,
+        date,
+        time
+      };
+
+      await emailjs.send("service_qtacvtn", "template_ewvtufi", emailParams);
+
+      // Show confirmation
+      sectionForm.style.display = "none";
+      sectionConfirm.style.display = "block";
+      form.reset();
+    } catch (error) {
+      alert("Error: " + (error.text || error.message));
+      console.error("EmailJS Error:", error);
+    }
+  });
+});
   <style>
     body {
       font-family: 'Poppins', sans-serif;
