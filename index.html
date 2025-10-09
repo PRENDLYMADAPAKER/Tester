@@ -28,7 +28,7 @@
     const db = getDatabase(app);
 
     // ------------------ EmailJS Setup ------------------
-    emailjs.init("YOUR_PUBLIC_KEY"); // 🟢 Replace with your EmailJS Public Key
+    emailjs.init("xvStFrKI-3M-3ZCvz"); // 🟢 Replace with your EmailJS Public Key
 
     // ------------------ Form Handling ------------------
     document.addEventListener("DOMContentLoaded", () => {
@@ -79,7 +79,7 @@
             time
           };
 
-          await emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", emailParams); // 🟢 Replace with your EmailJS IDs
+          await emailjs.send("service_jcdce0j", "template_ewvtufi", emailParams); // 🟢 Replace with your EmailJS IDs
 
           // Show confirmation
           sectionForm.style.display = "none";
