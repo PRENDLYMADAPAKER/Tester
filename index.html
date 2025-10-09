@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Guidance Appointment Scheduling</title>
+
+<!-- EmailJS -->
+<script src="https://cdn.emailjs.com/dist/email.min.js"></script>
+
+<!-- Firebase will be imported as modules in the script below -->
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg1:#ffffff;
+    --bg2:#ffe8f4;
+    --bg3:#e6d6ff;
+    --primary:#6c2bb9;
+    --accent:#b565d9;
+    --card-bg: rgba(255,255,255,0.88);
+    --glass: rgba(255,255,255,0.6);
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:"Poppins",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;color:#2a0a3a}
+  body{
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    min-height:100vh;
+    padding:28px 18px;
+    background: linear-gradient(135deg,var(--bg1), var(--bg2), var(--bg3));
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+
+  .wrap {
+    width:100%;
+    max-width:980px;
+    display:flex;
+    gap:28px;
+    align-items:flex-start;
+    justify-content:center;
+  }
+
+  /* Left column: logo + title + mini calendar */
+  .left {
+    width:360px;
+    max-width:40%;
+    min-width:300px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:18px;
+  }
+
+  /* Logo (as-is, no white circle) */
+  .logo {
+    width:160px;
+    height:auto;
+    object-fit:contain;
+    background:transparent;
+    box-shadow: none;
+  }
+
+  h1 {
+    font-size:1.6rem;
+    color:var(--primary);
+    margin:0;
+    text-align:center;
+    font-weight:700;
+  }
+
+  /* mini calendar */
+  .mini-cal {
+    width:100%;
+    background: var(--card-bg);
+    border-radius:12px;
+    padding:12px;
+    box-shadow: 0 8px 30px rgba(38,0,60,0.06);
+    border:1px solid rgba(0,0,0,0.03);
+  }
+  .mc-head { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; }
+  .mc-title { font-weight:700; color:var(--primary); }
+  .mc-grid { display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; }
+  .mc-day { font-size:12px; text-align:center; color:#6b4b7e; }
+  .date-tile {
+    height:54px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:10px;
+    cursor:pointer;
+    background: rgba(255,255,255,0.95);
+    transition: all .18s ease;
+    box-shadow: 0 6px 16px rgba(34,10,60,0.04);
+    font-weight:600;
+    color:var(--primary);
+  }
+  .date-tile:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(34,10,60,0.08) }
+  .date-tile.booked {
+    background: #efefef;
+    color:#9a9a9a;
+    cursor:not-allowed;
+    transform:none;
+    box-shadow:none;
+  }
+  .date-tile.today { outline: 2px solid rgba(108,43,185,0.08); }
+
+  /* right: form card */
+  .right {
+    width:520px;
+    max-width:55%;
+    min-width:320px;
+  }
+  .card {
+    background: var(--card-bg);
+    border-radius:14px;
+    padding:20px;
+    box-shadow: 0 12px 40px rgba(30,0,50,0.06);
+    border:1px solid rgba(0,0,0,0.04);
+  }
+  .card h2 { margin:0 0 12px 0; color:var(--primary); font-size:1.25rem }
+
+  form { display:flex; flex-direction:column; gap:10px; }
+  label{ font-weight:600; color:var(--primary); font-size:0.95rem }
+  input[type="text"], input[type="email"], input[type="tel"], textarea, select {
+    width:100%;
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid rgba(0,0,0,0.06);
+    background:white;
+    font-size:14px;
+    outline:none;
+  }
+  input[type="text"]:focus, input[type="email"]:focus, select:focus, textarea:focus { box-shadow: 0 10px 24px rgba(117,53,165,0.08); border-color:var(--accent) }
+
+  .row { display:flex; gap:12px; align-items:center; }
+  .row > * { flex:1; }
+
+  .btn {
+    padding:12px;
+    border-radius:10px;
+    border:none;
+    background: linear-gradient(90deg,var(--accent),var(--primary));
+    color:white;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .btn.ghost {
+    background:transparent;
+    border:1px solid rgba(0,0,0,0.06);
+    color:var(--primary);
+  }
+
+  /* Time modal */
+  .modal-backdrop {
+    position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background: rgba(0,0,0,0.44); z-index:1500;
+  }
+  .modal-backdrop.show { display:flex; }
+  .modal {
+    background:white; border-radius:12px; padding:18px; width:92%; max-width:520px; box-shadow:0 18px 48px rgba(0,0,0,0.18);
+  }
+  .modal h3 { margin:0 0 10px 0; color:var(--primary) }
+  .slots { display:flex; flex-wrap:wrap; gap:8px; }
+  .slot {
+    padding:10px 12px; border-radius:999px; border:none; cursor:pointer; font-weight:700; color:white; background: linear-gradient(180deg,var(--accent),var(--primary));
+  }
+  .slot.booked {
+    background:#eee; color:#9a9a9a; cursor:not-allowed; box-shadow:none;
+  }
+
+  /* service-other inline input */
+  .specify { display:none; margin-top:6px; }
+
+  /* toast bottom-right (semi-transparent glass blur) */
+  .toast-wrap {
+    position: fixed; right:18px; bottom:18px; z-index:2000; display:flex; flex-direction:column; gap:8px; align-items:flex-end;
+  }
+  .toast {
+    min-width:220px; max-width:360px;
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(8px);
+    padding:12px 14px;
+    border-radius:10px;
+    box-shadow: 0 10px 30px rgba(30,0,50,0.12);
+    border-left:6px solid var(--accent);
+    color:var(--primary);
+    font-weight:700;
+    transform: translateY(12px); opacity:0;
+    transition: all .32s cubic-bezier(.2,.9,.3,1);
+  }
+  .toast.show{ transform: translateY(0); opacity:1; }
+  .toast.success{ border-left-color:#23c26b; color:#0d5e33 }
+  .toast.error{ border-left-color:#ff6b6b; color:#7b2222 }
+
+  /* small helpers */
+  .muted { color:#6b6b6b; font-size:13px; text-align:center }
+
+  @media(max-width:980px){
+    .wrap{ flex-direction:column; align-items:center; gap:14px; }
+    .left, .right { width:100%; max-width:720px; min-width:unset; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="left">
+      <img class="logo" src="https://i.imgur.com/1EOyoBG.png" alt="Logo">
+      <h1>Guidance Appointment Scheduling</h1>
+
+      <!-- Mini calendar: shows next 30 days; fully-booked dates are gray -->
+      <div class="mini-cal card" id="miniCal">
+        <div class="mc-head">
+          <div class="mc-title">Select date</div>
+          <div class="mc-sub muted" id="mc-sub">Next 30 days</div>
+        </div>
+        <div class="mc-grid" id="mc-weeknames">
+          <div class="mc-day">Sun</div><div class="mc-day">Mon</div><div class="mc-day">Tue</div><div class="mc-day">Wed</div><div class="mc-day">Thu</div><div class="mc-day">Fri</div><div class="mc-day">Sat</div>
+        </div>
+        <div class="mc-grid" id="mc-grid" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="card">
+        <h2>Book an Appointment</h2>
+
+        <form id="appointmentForm" autocomplete="off">
+          <label for="name">Full name</label>
+          <input id="name" name="name" type="text" required placeholder="Your full name">
+
+          <label for="email">Email address</label>
+          <input id="email" name="email" type="email" required placeholder="you@example.com">
+
+          <label for="phone">Phone (e.g. +63)</label>
+          <input id="phone" name="phone" type="tel" required placeholder="+63xxxxxxxxxx">
+
+          <label for="service">Service</label>
+          <select id="service" name="service" required>
+            <option value="">Select service</option>
+            <option value="Counseling">Counseling</option>
+            <option value="Career Guidance">Career Guidance</option>
+            <option value="Academic Consultation">Academic Consultation</option>
+            <option value="Others">Others</option>
+          </select>
+
+          <div class="specify" id="specifyWrap">
+            <label for="otherText">Please specify</label>
+            <input id="otherText" type="text" placeholder="Please specify the service">
+          </div>
+
+          <div class="row">
+            <div>
+              <label for="date">Date</label>
+              <!-- hidden input used to store selected date for form submission -->
+              <input id="date" name="date" type="text" placeholder="Select date from mini calendar" readonly required>
+            </div>
+            <div>
+              <label for="time">Time</label>
+              <input id="time" name="time" type="text" placeholder="Select time" readonly required>
+            </div>
+          </div>
+
+          <label for="notes">Notes (optional)</label>
+          <textarea id="notes" name="notes" rows="3" placeholder="Additional notes..."></textarea>
+
+          <div style="display:flex; gap:10px;">
+            <button id="openTime" type="button" class="btn ghost">Choose Time</button>
+            <button type="submit" class="btn">Confirm Booking</button>
+          </div>
+          <div style="margin-top:8px;">
+            <div class="muted">If a date or time is grayed out it is already booked.</div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Time modal -->
+  <div class="modal-backdrop" id="timeModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal" role="document">
+      <h3>Select a time slot</h3>
+      <div class="slots" id="slots"></div>
+      <div style="text-align:right; margin-top:14px;"><button id="closeSlots" class="btn ghost">Close</button></div>
+    </div>
+  </div>
+
+  <!-- Toasts -->
+  <div class="toast-wrap" id="toastWrap"></div>
+
+<script type="module">
+  /* ======= CONFIG ======= */
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCstDdbOAisSEZzu9FT9Zyzl_pj5-RHBnA",
+    authDomain: "guidance-appointment.firebaseapp.com",
+    databaseURL: "https://guidance-appointment-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "guidance-appointment",
+    storageBucket: "guidance-appointment.firebasestorage.app",
+    messagingSenderId: "280009961139",
+    appId: "1:280009961139:web:f0863f2e5940be5e534ac6",
+    measurementId: "G-2MCGGLRTML"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // EmailJS init (global)
+  if (window.emailjs && typeof window.emailjs.init === 'function') {
+    window.emailjs.init("xvStFrKI-3M-3ZCvz");
+  } else {
+    console.warn("EmailJS not loaded; emails may not send.");
+  }
+
+  /* ======= CONSTANTS ======= */
+  const TIME_SLOTS = [
+    "8:00 AM - 9:00 AM",
+    "9:00 AM - 10:00 AM",
+    "10:00 AM - 11:00 AM",
+    "11:00 AM - 12:00 NN",
+    "1:00 PM - 2:00 PM",
+    "2:00 PM - 3:00 PM",
+    "3:00 PM - 4:00 PM",
+    "4:00 PM - 5:00 PM"
+  ];
+
+  // Elements
+  const mcGrid = document.getElementById('mc-grid');
+  const dateInput = document.getElementById('date');
+  const timeInput = document.getElementById('time');
+  const openTime = document.getElementById('openTime');
+  const timeModal = document.getElementById('timeModal');
+  const slotsWrap = document.getElementById('slots');
+  const closeSlots = document.getElementById('closeSlots');
+  const toastWrap = document.getElementById('toastWrap');
+  const serviceSelect = document.getElementById('service');
+  const specifyWrap = document.getElementById('specifyWrap');
+  const otherText = document.getElementById('otherText');
+  const appointmentForm = document.getElementById('appointmentForm');
+  const notesInput = document.getElementById('notes');
+
+  // Utility: format date YYYY-MM-DD
+  function formatDateKey(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+
+  // Toasts (bottom-right)
+  let toastTimer = null;
+  function showToast(message, type='info') {
+    const node = document.createElement('div');
+    node.className = 'toast';
+    if (type === 'success') node.classList.add('success');
+    if (type === 'error') node.classList.add('error');
+    node.textContent = message;
+    toastWrap.appendChild(node);
+    // trigger show
+    requestAnimationFrame(()=> node.classList.add('show'));
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> {
+      node.classList.remove('show');
+      setTimeout(()=> node.remove(), 300);
+    }, 3600);
+  }
+
+  // Fetch booked dates for next N days
+  async function fetchBookedDates(days=30) {
+    try {
+      const rootSnap = await get(ref(db, 'appointments'));
+      const data = rootSnap.exists() ? rootSnap.val() : null;
+      // We'll compute counts per date
+      const counts = {};
+      if (!data) return counts;
+      // If top-level keys look like dates: date-keyed
+      const topKeys = Object.keys(data || {});
+      const isDateKeyed = topKeys.length>0 && topKeys.every(k=> /^\d{4}-\d{2}-\d{2}$/.test(k));
+      if (isDateKeyed) {
+        for (const dateKey in data) {
+          const dayNode = data[dateKey];
+          const num = dayNode ? Object.keys(dayNode).length : 0;
+          counts[dateKey] = num;
+        }
+      } else {
+        // push-list: iterate and count
+        for (const id in data) {
+          const appt = data[id];
+          if (!appt || !appt.date) continue;
+          counts[appt.date] = (counts[appt.date] || 0) + 1;
+        }
+      }
+      return counts;
+    } catch (err) {
+      console.error('fetchBookedDates error', err);
+      return {};
+    }
+  }
+
+  // Populate mini calendar (next 30 days)
+  async function populateMiniCal() {
+    mcGrid.innerHTML = '';
+    const today = new Date(); today.setHours(0,0,0,0);
+    const days = 30;
+    const bookedCounts = await fetchBookedDates(days);
+    // for each day show tile
+    for (let i=0;i<days;i++){
+      const d = new Date(today);
+      d.setDate(today.getDate()+i);
+      const key = formatDateKey(d);
+      const tile = document.createElement('div');
+      tile.className = 'date-tile';
+      tile.textContent = d.getDate();
+      // mark today
+      if (i===0) tile.classList.add('today');
+      // fully booked if bookedCounts[key] >= TIME_SLOTS.length
+      const cnt = bookedCounts[key] || 0;
+      if (cnt >= TIME_SLOTS.length) {
+        tile.classList.add('booked');
+        tile.title = 'Fully booked';
+      } else {
+        tile.addEventListener('click', () => {
+          // set selected date
+          dateInput.value = key;
+          showToast(`Selected ${key}`, 'success');
+          // clear any previously selected time
+          timeInput.value = '';
+          // open time modal to pick time
+          openTimeModalForDate(key);
+        });
+      }
+      mcGrid.appendChild(tile);
+    }
+  }
+
+  // Build slots inside modal for a given date; gray out booked slots
+  async function openTimeModalForDate(dateKey) {
+    // load bookings for date
+    slotsWrap.innerHTML = '';
+    try {
+      const snap = await get(ref(db, `appointments/${dateKey}`));
+      const booked = [];
+      if (snap.exists()) {
+        const val = snap.val();
+        // val keys are slotKeys or pushIDs; values may have .time
+        for (const k in val) {
+          const appt = val[k];
+          if (appt && appt.time) booked.push(appt.time);
+          else if (typeof val[k] === 'string') booked.push(val[k]);
+        }
+      }
+      // populate
+      TIME_SLOTS.forEach(slot => {
+        const btn = document.createElement('button');
+        btn.className = 'slot';
+        btn.textContent = slot;
+        btn.dataset.time = slot;
+        if (booked.includes(slot)) {
+          btn.classList.add('booked');
+          btn.disabled = true;
+        } else {
+          btn.addEventListener('click', async () => {
+            // pick this time, set input
+            timeInput.value = slot;
+            // close modal
+            closeTimeModal();
+            showToast(`${slot} selected`, 'success');
+          });
+        }
+        slotsWrap.appendChild(btn);
+      });
+      // show modal
+      timeModal.classList.add('show');
+      timeModal.setAttribute('aria-hidden','false');
+      timeModal.style.display = 'flex';
+    } catch (err) {
+      console.error('openTimeModalForDate error', err);
+      showToast('Could not load times (network).', 'error');
+    }
+  }
+
+  function closeTimeModal(){
+    timeModal.classList.remove('show');
+    timeModal.setAttribute('aria-hidden','true');
+    timeModal.style.display = 'none';
+  }
+
+  // Convert slot to safe firebase key
+  function slotToKey(slot) {
+    return slot.replace(/[^a-zA-Z0-9]/g,'_').toLowerCase();
+  }
+
+  // On load populate mini calendar
+  populateMiniCal();
+
+  // allow openTime button to open modal (requires date selected)
+  openTime.addEventListener('click', () => {
+    const d = dateInput.value;
+    if (!d) { showToast('Please choose a date first from the left calendar', 'error'); return; }
+    openTimeModalForDate(d);
+  });
+
+  closeSlots.addEventListener('click', closeTimeModal);
+  timeModal.addEventListener('click', (e)=> { if (e.target === timeModal) closeTimeModal(); });
+
+  // Service -> Others behavior
+  serviceSelect.addEventListener('change', (e) => {
+    if (serviceSelect.value === 'Others') {
+      specifyWrap.style.display = 'block';
+      otherText.required = true;
+    } else {
+      specifyWrap.style.display = 'none';
+      otherText.required = false;
+      otherText.value = '';
+    }
+  });
+
+  // Form submission: double-check availability, then write to DB
+  appointmentForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    let service = serviceSelect.value;
+    if (service === 'Others') service = otherText.value.trim() || 'Others';
+    const dateKey = dateInput.value;
+    const timeSlot = timeInput.value;
+    const notes = notesInput.value.trim();
+
+    if (!name || !email || !phone || !service || !dateKey || !timeSlot) {
+      showToast('Please complete all required fields and pick a date & time', 'error');
+      return;
+    }
+
+    try {
+      // re-check slot availability
+      const slotKey = slotToKey(timeSlot);
+      const appointmentPathRef = ref(db, `appointments/${dateKey}/${slotKey}`);
+      const existingSnap = await get(appointmentPathRef);
+      if (existingSnap.exists()) {
+        showToast('That time was just booked by someone else. Please choose another slot.', 'error');
+        // refresh mini calendar & modal state
+        await populateMiniCal();
+        return;
+      }
+
+      // write appointment (1 per slot)
+      await set(appointmentPathRef, { name, email, phone, service, date: dateKey, time: timeSlot, notes, timestamp: Date.now() });
+
+      // send email using EmailJS (non-blocking)
+      if (window.emailjs && typeof window.emailjs.send === 'function') {
+        try {
+          await window.emailjs.send('service_qtacvtn', 'template_ewvtufi', {
+            to_email: email,
+            name,
+            service,
+            date: dateKey,
+            time: timeSlot
+          });
+        } catch (err) {
+          console.warn('EmailJS send failed', err);
+        }
+      }
+
+      showToast('Appointment booked — confirmation sent (if email available).', 'success');
+
+      // clear form visually
+      appointmentForm.reset();
+      timeInput.value = '';
+      dateInput.value = '';
+
+      // refresh mini calendar so newly fully-booked dates gray out
+      await populateMiniCal();
+
+    } catch (err) {
+      console.error('Submit error:', err);
+      showToast('Failed saving appointment. Try again.', 'error');
+    }
+  });
+
+  // refresh calendar periodically (in case other users book)
+  setInterval(populateMiniCal, 30_000); // refresh every 30s
+</script>
+</body>
+</html>
