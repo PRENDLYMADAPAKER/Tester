@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guidance Appointment Scheduler</title>
+
+  <!-- EmailJS SDK -->
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+  <script type="module">
+    // ------------------ Firebase Setup ------------------
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCstDdbOAisSEZzu9FT9Zyzl_pj5-RHBnA",
+      authDomain: "guidance-appointment.firebaseapp.com",
+      databaseURL: "https://guidance-appointment-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "guidance-appointment",
+      storageBucket: "guidance-appointment.firebasestorage.app",
+      messagingSenderId: "280009961139",
+      appId: "1:280009961139:web:f0863f2e5940be5e534ac6",
+      measurementId: "G-2MCGGLRTML"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // ------------------ EmailJS Setup ------------------
+    emailjs.init("xvStFrKI-3M-3ZCvz"); // ✅ Your EmailJS Public Key
+
+    // ------------------ Form Handling ------------------
+    document.addEventListener("DOMContentLoaded", () => {
+      const form = document.getElementById("appointmentForm");
+      const sectionForm = document.getElementById("formSection");
+      const sectionConfirm = document.getElementById("confirmationSection");
+      const bookBtn = document.getElementById("bookNowBtn");
+      const landing = document.getElementById("landingSection");
+
+      // Show booking form
+      bookBtn.addEventListener("click", () => {
+        landing.style.display = "none";
+        sectionForm.style.display = "block";
+      });
+
+      // Handle form submission
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const name = document.getElementById("name").value.trim();
+        const email = document.getElementById("email").value.trim();
+        const phone = document.getElementById("phone").value.trim();
+        const service = document.getElementById("service").value.trim();
+        const date = document.getElementById("date").value.trim();
+        const time = document.getElementById("time").value.trim();
+        const notes = document.getElementById("notes").value.trim();
+
+        try {
+          // ✅ Save to Firebase
+          const appointmentRef = ref(db, "appointments");
+          const newAppointment = push(appointmentRef);
+          await set(newAppointment, {
+            name,
+            email,
+            phone,
+            service,
+            date,
+            time,
+            notes,
+            status: "pending",
+            timestamp: Date.now()
+          });
+
+          // ✅ Send Email Confirmation
+          const emailParams = {
+            name,
+            email,
+            service,
+            date,
+            time
+          };
+
+          await emailjs.send("service_qtacvtn", "template_ewvtufi", emailParams);
+
+          // ✅ Show Confirmation Screen
+          sectionForm.style.display = "none";
+          sectionConfirm.style.display = "block";
+          form.reset();
+        } catch (error) {
+          alert("Error: " + (error.text || error.message || error));
+          console.error("EmailJS/Firebase Error:", error);
+        }
+      });
+    });
+  </script>
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f5f7fb;
+      color: #333;
+    }
+
+    header {
+      background-color: #004aad;
+      color: white;
+      text-align: center;
+      padding: 1.5rem 0;
+    }
+
+    main {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      min-height: 80vh;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .btn {
+      background-color: #004aad;
+      color: white;
+      border: none;
+      padding: 10px 25px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.3s ease;
+    }
+
+    .btn:hover {
+      background-color: #003680;
+    }
+
+    form {
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+      max-width: 400px;
+      margin: auto;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      margin-bottom: 15px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 15px;
+    }
+
+    textarea {
+      resize: none;
+      height: 80px;
+    }
+
+    h2 {
+      color: #004aad;
+    }
+
+    #confirmationSection {
+      display: none;
+    }
+
+    #formSection {
+      display: none;
+    }
+
+    #confirmationSection .check {
+      font-size: 50px;
+      color: green;
+    }
+
+    p {
+      line-height: 1.6;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Guidance Appointment Scheduling</h1>
+  </header>
+
+  <main>
+    <!-- Landing Section -->
+    <section id="landingSection">
+      <h2>Welcome to the Guidance Appointment Portal</h2>
+      <p>Book your appointment easily and securely online.</p>
+      <button id="bookNowBtn" class="btn">Book Now</button>
+    </section>
+
+    <!-- Appointment Form -->
+    <section id="formSection">
+      <h2>Book an Appointment</h2>
+      <form id="appointmentForm">
+        <input type="text" id="name" placeholder="Full Name" required>
+        <input type="email" id="email" placeholder="Email Address" required>
+        <input type="tel" id="phone" placeholder="Phone Number" required>
+        <select id="service" required>
+          <option value="">Select Service</option>
+          <option value="Counseling">Counseling</option>
+          <option value="Career Guidance">Career Guidance</option>
+          <option value="Academic Consultation">Academic Consultation</option>
+        </select>
+        <input type="date" id="date" required>
+        <input type="time" id="time" required>
+        <textarea id="notes" placeholder="Notes (optional)"></textarea>
+        <button type="submit" class="btn">Submit Appointment</button>
+      </form>
+    </section>
+
+    <!-- Confirmation Section -->
+    <section id="confirmationSection">
+      <div class="check">✔️</div>
+      <h2>Appointment Scheduled Successfully!</h2>
+      <p>Thank you for booking your appointment. A confirmation email has been sent to you.</p>
+      <button class="btn" onclick="location.reload()">Book Another</button>
+    </section>
+  </main>
+</body>
+  </html>
