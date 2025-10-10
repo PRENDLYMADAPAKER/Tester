@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guidance Appointment Scheduling</title>
+
+  <!-- EmailJS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+  <!-- Firebase Config (separate file) -->
+  <script type="module" src="./firebase-config.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #fff0f6, #f3e5f5, #f8bbd0);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    header {
+      text-align: center;
+      padding: 20px;
+      color: #4a148c;
+    }
+
+    header img {
+      width: 90px;
+      display: block;
+      margin: 0 auto 10px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      color: #4a148c;
+    }
+
+    main {
+      max-width: 500px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.65);
+      backdrop-filter: blur(8px);
+      padding: 25px;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    input, select, textarea, button {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 15px;
+    }
+
+    button {
+      background-color: #7b1fa2;
+      color: white;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #6a1b9a;
+    }
+
+    #calendar {
+      display: flex;
+      justify-content: center;
+      margin: 10px 0 20px;
+    }
+
+    #calendar input {
+      width: 200px;
+      text-align: center;
+    }
+
+    .time-picker {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .time-slot {
+      padding: 10px 15px;
+      border-radius: 8px;
+      border: 1px solid #aaa;
+      cursor: pointer;
+      background: white;
+      transition: all 0.3s ease;
+    }
+
+    .time-slot:hover {
+      background: #e1bee7;
+    }
+
+    .time-slot.selected {
+      background: #7b1fa2;
+      color: white;
+    }
+
+    .time-slot.disabled {
+      background: #ddd;
+      color: #777;
+      pointer-events: none;
+    }
+
+    /* Toast Notification */
+    #toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(8px);
+      color: #4a148c;
+      padding: 14px 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+      font-weight: 500;
+      opacity: 0;
+      transform: translateY(-30px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+      z-index: 1000;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+  </style>
+</head>
+
+<body>
+  <header>
+    <img src="https://i.imgur.com/1EOyoBG.png" alt="Guidance Office Logo">
+    <h1>Guidance Appointment Scheduling</h1>
+  </header>
+
+  <main>
+    <form id="appointmentForm">
+      <input type="text" id="name" placeholder="Full Name" required>
+      <input type="email" id="email" placeholder="Email Address" required>
+      <input type="tel" id="phone" placeholder="Phone Number" required>
+
+      <select id="service" required>
+        <option value="">Select Service</option>
+        <option value="Counseling">Counseling</option>
+        <option value="Career Guidance">Career Guidance</option>
+        <option value="Academic Consultation">Academic Consultation</option>
+        <option value="Others">Others</option>
+      </select>
+
+      <textarea id="otherService" placeholder="Please specify other service..." style="display:none;"></textarea>
+
+      <!-- Calendar -->
+      <div id="calendar">
+        <input type="date" id="date" min="">
+      </div>
+
+      <!-- Time Picker -->
+      <div class="time-picker" id="timePicker">
+        <!-- Time slots will be generated dynamically -->
+      </div>
+
+      <textarea id="notes" placeholder="Notes (optional)"></textarea>
+
+      <button type="submit">Submit Appointment</button>
+    </form>
+  </main>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <script type="module">
+    import { getDatabase, ref, push, set, get, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+    import { app } from './firebase-config.js';
+
+    const db = getDatabase(app);
+
+    emailjs.init("xvStFrKI-3M-3ZCvz"); // your EmailJS Public Key
+
+    const form = document.getElementById("appointmentForm");
+    const timePicker = document.getElementById("timePicker");
+    const dateInput = document.getElementById("date");
+    const serviceSelect = document.getElementById("service");
+    const otherService = document.getElementById("otherService");
+
+    const times = ["8am-9am","9am-10am","10am-11am","11am-12nn","1pm-2pm","2pm-3pm","3pm-4pm","4pm-5pm"];
+
+    // ========== Generate Time Slots ==========
+    times.forEach(time => {
+      const btn = document.createElement("div");
+      btn.className = "time-slot";
+      btn.textContent = time;
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".time-slot").forEach(slot => slot.classList.remove("selected"));
+        btn.classList.add("selected");
+      });
+      timePicker.appendChild(btn);
+    });
+
+    // ========== Date Setup ==========
+    const today = new Date().toISOString().split("T")[0];
+    dateInput.min = today;
+
+    // ========== Show "Other" Service Box ==========
+    serviceSelect.addEventListener("change", () => {
+      otherService.style.display = serviceSelect.value === "Others" ? "block" : "none";
+    });
+
+    // ========== Fetch Booked Times ==========
+    async function updateBookedTimes(selectedDate) {
+      const q = query(ref(db, "appointments"), orderByChild("date"), equalTo(selectedDate));
+      const snap = await get(q);
+
+      const bookedTimes = [];
+      if (snap.exists()) {
+        snap.forEach(child => {
+          bookedTimes.push(child.val().time);
+        });
+      }
+
+      document.querySelectorAll(".time-slot").forEach(slot => {
+        if (bookedTimes.includes(slot.textContent)) {
+          slot.classList.add("disabled");
+        } else {
+          slot.classList.remove("disabled");
+        }
+      });
+    }
+
+    dateInput.addEventListener("change", (e) => {
+      updateBookedTimes(e.target.value);
+    });
+
+    // ========== Toast Notification ==========
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+
+      setTimeout(() => {
+        toast.classList.remove("show");
+      }, 2000); // fade + visible time total 2s
+    }
+
+    // ========== Submit Appointment ==========
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      const phone = document.getElementById("phone").value;
+      const notes = document.getElementById("notes").value;
+      const service = serviceSelect.value === "Others" ? otherService.value : serviceSelect.value;
+      const date = dateInput.value;
+      const selectedTime = document.querySelector(".time-slot.selected");
+
+      if (!selectedTime) return showToast("Please select a time slot");
+
+      const time = selectedTime.textContent;
+
+      try {
+        const newRef = push(ref(db, "appointments"));
+        await set(newRef, { name, email, phone, service, date, time, notes, status: "pending", timestamp: Date.now() });
+
+        await emailjs.send("service_qtacvtn", "template_ewvtufi", {
+          name, service, date, time, email
+        });
+
+        showToast("✅ Appointment booked successfully!");
+        form.reset();
+        document.querySelectorAll(".time-slot").forEach(slot => slot.classList.remove("selected"));
+        updateBookedTimes(date);
+      } catch (err) {
+        console.error(err);
+        showToast("❌ Error booking appointment");
+      }
+    });
+  </script>
+</body>
+        </html>
