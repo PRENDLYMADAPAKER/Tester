@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Guidance Appointment Scheduling</title>
+
+<!-- EmailJS -->
+<script src="https://cdn.emailjs.com/dist/email.min.js"></script>
+
+<!-- Google font -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg1:#ffffff;
+  --bg2:#ffe8f4;
+  --bg3:#e6d6ff;
+  --primary:#6c2bb9;
+  --accent:#b565d9;
+  --card-bg: rgba(255,255,255,0.88);
+}
+
+/* basic */
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:"Poppins",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;color:#2a0a3a}
+body{
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  min-height:100vh;
+  padding:28px 18px;
+  background: linear-gradient(135deg,var(--bg1), var(--bg2), var(--bg3));
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+/* layout */
+.container{
+  width:100%;
+  max-width:1100px;
+  display:flex;
+  gap:28px;
+  align-items:flex-start;
+  justify-content:center;
+  padding-bottom:40px;
+  flex-wrap:wrap;
+}
+
+/* left: calendar */
+.left {
+  width:360px;
+  min-width:300px;
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+  align-items:center;
+}
+.logo { width:160px; object-fit:contain; display:block; }
+.title { font-size:20px; color:var(--primary); font-weight:700; text-align:center; margin:0; }
+
+/* month calendar card */
+.cal-card {
+  width:100%;
+  background:var(--card-bg);
+  border-radius:12px;
+  padding:12px;
+  box-shadow: 0 8px 30px rgba(38,0,60,0.06);
+  border:1px solid rgba(0,0,0,0.03);
+}
+.cal-top { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; }
+.cal-month { font-weight:700; color:var(--primary); font-size:16px; }
+.cal-nav button { background:transparent; border:1px solid rgba(0,0,0,0.06); padding:6px 8px; border-radius:8px; cursor:pointer; }
+.weeknames { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:6px; color:#6b4b7e; font-size:12px; text-align:center; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; }
+
+/* day tiles */
+.day-tile {
+  height:64px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  border-radius:10px;
+  background:rgba(255,255,255,0.95);
+  box-shadow:0 6px 16px rgba(34,10,60,0.04);
+  cursor:pointer;
+  transition: transform .12s ease, box-shadow .12s ease, opacity .12s;
+  color:var(--primary);
+  font-weight:600;
+}
+.day-tile:hover { transform: translateY(-6px); box-shadow:0 12px 28px rgba(34,10,60,0.08); }
+.day-tile.booked { background:#efefef; color:#9a9a9a; cursor:not-allowed; transform:none; box-shadow:none; opacity:0.9; }
+.day-tile.inactive { visibility:hidden; pointer-events:none; }
+
+/* right: form card */
+.right { width:560px; min-width:320px; }
+.form-card {
+  background: var(--card-bg);
+  border-radius:14px;
+  padding:20px;
+  box-shadow: 0 12px 40px rgba(30,0,50,0.06);
+  border:1px solid rgba(0,0,0,0.04);
+}
+.form-card h2{ margin:0 0 12px 0; color:var(--primary); font-size:18px }
+.form { display:flex; flex-direction:column; gap:10px; }
+label{ font-weight:600; color:var(--primary); font-size:0.95rem }
+input,select,textarea{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(0,0,0,0.06); background:white; font-size:14px; outline:none; }
+input:focus, select:focus, textarea:focus { box-shadow:0 10px 24px rgba(117,53,165,0.08); border-color:var(--accent) }
+.row{ display:flex; gap:12px; }
+.row > * { flex:1; }
+
+.btn {
+  padding:12px; border-radius:10px; border:none; cursor:pointer;
+  background: linear-gradient(90deg,var(--accent),var(--primary)); color:#fff; font-weight:700;
+}
+.btn.ghost { background:transparent; border:1px solid rgba(0,0,0,0.06); color:var(--primary); }
+
+/* time modal */
+.modal-backdrop {
+  position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+  background: rgba(0,0,0,0.44); z-index:1400;
+}
+.modal-backdrop.show{ display:flex; }
+.modal {
+  background:white; border-radius:12px; padding:18px; width:92%; max-width:520px; box-shadow:0 18px 48px rgba(0,0,0,0.18);
+}
+.slots { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; justify-content:center; }
+.slot { padding:10px 14px; border-radius:999px; border:none; cursor:pointer; font-weight:700; color:white; background: linear-gradient(180deg,var(--accent),var(--primary)); }
+.slot.booked { background:#eee; color:#9a9a9a; cursor:not-allowed; box-shadow:none; }
+
+/* toast bottom-right - blurred */
+.toast-wrap { position:fixed; right:18px; bottom:18px; display:flex; flex-direction:column; gap:10px; align-items:flex-end; z-index:2000; }
+.toast {
+  min-width:220px; max-width:360px; padding:12px 14px; border-radius:10px;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(10px); color:var(--primary); font-weight:700;
+  box-shadow:0 12px 36px rgba(0,0,0,0.12); border-left:6px solid var(--accent);
+  opacity:0; transform: translateY(10px); transition: opacity 2s ease, transform 0.4s ease;
+}
+.toast.show { opacity:1; transform: translateY(0); }
+.toast.success { border-left-color:#23c26b; color:#0d5e33; background: rgba(255,255,255,0.92); }
+.toast.error { border-left-color:#ff6b6b; color:#7b2222; background: rgba(255,255,255,0.92); }
+
+.muted { color:#6b6b6b; font-size:13px; text-align:center; }
+
+@media(max-width:1100px){
+  .container{ padding:10px; }
+  .right{ width:100%; }
+  .left{ width:100%; display:flex; flex-direction:row; gap:12px; align-items:flex-start; }
+  .left > .cal-card { flex:1; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- LEFT: logo + calendar -->
+  <div class="left">
+    <img class="logo" src="https://i.imgur.com/1EOyoBG.png" alt="Logo">
+    <div class="cal-card" aria-label="Month calendar">
+      <div class="cal-top">
+        <div class="cal-month" id="monthTitle">Month YYYY</div>
+        <div class="cal-nav">
+          <button id="prevMonth" aria-label="Previous month">◀</button>
+          <button id="nextMonth" aria-label="Next month">▶</button>
+        </div>
+      </div>
+      <div class="weeknames">
+        <div class="mc-day">Sun</div><div class="mc-day">Mon</div><div class="mc-day">Tue</div><div class="mc-day">Wed</div><div class="mc-day">Thu</div><div class="mc-day">Fri</div><div class="mc-day">Sat</div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Form -->
+  <div class="right">
+    <div class="form-card">
+      <h2>Book an Appointment</h2>
+      <form id="appointmentForm" autocomplete="off">
+        <label for="name">Full name</label>
+        <input id="name" type="text" required placeholder="Your full name"/>
+
+        <label for="email">Email</label>
+        <input id="email" type="email" required placeholder="you@example.com"/>
+
+        <label for="phone">Phone</label>
+        <input id="phone" type="tel" required placeholder="+63xxxxxxxxxx"/>
+
+        <label for="service">Service</label>
+        <select id="service" required>
+          <option value="">Select service</option>
+          <option>Counseling</option>
+          <option>Career Guidance</option>
+          <option>Academic Consultation</option>
+          <option>Others</option>
+        </select>
+
+        <div id="otherWrap" style="display:none;">
+          <label for="otherText">Please specify</label>
+          <input id="otherText" type="text" placeholder="Please specify the service"/>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="date">Date</label>
+            <input id="date" type="text" readonly placeholder="Pick a date from calendar" required/>
+          </div>
+          <div>
+            <label for="time">Time</label>
+            <input id="time" type="text" readonly placeholder="Pick time" required/>
+          </div>
+        </div>
+
+        <label for="notes">Notes (optional)</label>
+        <textarea id="notes" rows="3" placeholder="Additional notes..."></textarea>
+
+        <div style="display:flex;gap:10px;margin-top:8px;">
+          <button id="openTimeBtn" type="button" class="btn ghost">Choose Time</button>
+          <button type="submit" class="btn">Confirm Booking</button>
+        </div>
+        <p class="muted" style="margin-top:8px;">If a date or time is grayed out it is already booked.</p>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Time modal -->
+<div class="modal-backdrop" id="timeModal" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3>Select a time slot</h3>
+    <div class="slots" id="slots"></div>
+    <div style="text-align:right;margin-top:12px;">
+      <button id="closeSlots" class="btn ghost">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast wrap -->
+<div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
+
+<script type="module">
+/* ===== FIREBASE IMPORTS & CONFIG ===== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { getDatabase, ref, get, set, push } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCstDdbOAisSEZzu9FT9Zyzl_pj5-RHBnA",
+  authDomain: "guidance-appointment.firebaseapp.com",
+  databaseURL: "https://guidance-appointment-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "guidance-appointment",
+  storageBucket: "guidance-appointment.firebasestorage.app",
+  messagingSenderId: "280009961139",
+  appId: "1:280009961139:web:f0863f2e5940be5e534ac6",
+  measurementId: "G-2MCGGLRTML"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+/* ===== EmailJS init (global) ===== */
+if (window.emailjs && typeof window.emailjs.init === 'function') {
+  window.emailjs.init("xvStFrKI-3M-3ZCvz");
+} else {
+  console.warn("EmailJS not available; emails may not send.");
+}
+
+/* ===== CONSTANTS & ELEMENTS ===== */
+const TIME_SLOTS = [
+  "8:00 AM - 9:00 AM","9:00 AM - 10:00 AM","10:00 AM - 11:00 AM","11:00 AM - 12:00 NN",
+  "1:00 PM - 2:00 PM","2:00 PM - 3:00 PM","3:00 PM - 4:00 PM","4:00 PM - 5:00 PM"
+];
+
+const calGrid = document.getElementById('calGrid');
+const monthTitle = document.getElementById('monthTitle');
+const prevMonthBtn = document.getElementById('prevMonth');
+const nextMonthBtn = document.getElementById('nextMonth');
+
+const dateInput = document.getElementById('date');
+const timeInput = document.getElementById('time');
+const openTimeBtn = document.getElementById('openTimeBtn');
+const timeModal = document.getElementById('timeModal');
+const slotsDiv = document.getElementById('slots');
+const closeSlotsBtn = document.getElementById('closeSlots');
+
+const serviceSelect = document.getElementById('service');
+const otherWrap = document.getElementById('otherWrap');
+const otherText = document.getElementById('otherText');
+
+const form = document.getElementById('appointmentForm');
+const toastWrap = document.getElementById('toastWrap');
+
+let displayedYear, displayedMonth; // month: 0-11
+
+/* ===== Utilities ===== */
+function formatDateKey(d){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function slotKey(slot){ return slot.replace(/[^a-zA-Z0-9]/g,'_').toLowerCase(); }
+
+/* ===== Toast: fade-in 2s, hold 1s, fade-out 2s ===== */
+function showToast(message, type='info'){
+  const node = document.createElement('div');
+  node.className = 'toast';
+  if (type === 'success') node.classList.add('success');
+  if (type === 'error') node.classList.add('error');
+  node.textContent = message;
+  toastWrap.appendChild(node);
+  // trigger fade-in (2s)
+  requestAnimationFrame(()=> node.classList.add('show'));
+  // After 2s fade-in + 1s hold = 3s, start fade-out by removing class
+  setTimeout(()=> {
+    node.classList.remove('show');
+    // wait fade-out 2s then remove element
+    setTimeout(()=> node.remove(), 2000);
+  }, 3000);
+}
+
+/* ===== Fetch bookings helper (returns object map date->count and map date->bookedSlots array) ===== */
+async function fetchAllAppointments(){
+  try{
+    const snap = await get(ref(db, 'appointments'));
+    if (!snap.exists()) return {counts:{}, slots:{}};
+    const data = snap.val();
+    // data shape: { "YYYY-MM-DD": { slotKey: {time: "...", ...}, ... }, ... }
+    const counts = {};
+    const slots = {};
+    for (const dateKey in data){
+      const dayNode = data[dateKey] || {};
+      counts[dateKey] = Object.keys(dayNode).length;
+      slots[dateKey] = Object.values(dayNode).map(a => a && a.time ? a.time : null).filter(Boolean);
+    }
+    return {counts, slots};
+  }catch(err){
+    console.error('fetchAllAppointments', err);
+    return {counts:{}, slots:{}};
+  }
+}
+
+/* ===== Calendar rendering ===== */
+async function renderCalendar(year, month){
+  displayedYear = year; displayedMonth = month;
+  const firstOfMonth = new Date(year, month, 1);
+  const monthName = firstOfMonth.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+  monthTitle.textContent = monthName;
+
+  // days to show: start from Sunday before firstOfMonth to Saturday after last day
+  const start = new Date(year, month, 1);
+  start.setDate(1 - start.getDay()); // move to previous Sunday
+  const end = new Date(year, month + 1, 0); // last day this month
+  const totalCells = Math.ceil((end.getDate() + (start.getDay())) / 7) * 7; // not necessary; we'll iterate 6 weeks to be safe
+
+  const {counts, slots} = await fetchAllAppointments();
+
+  calGrid.innerHTML = '';
+  // show 6 rows * 7 cols = 42 cells (covers all months)
+  for (let i = 0; i < 42; i++){
+    const cellDate = new Date(start);
+    cellDate.setDate(start.getDate() + i);
+    const cell = document.createElement('div');
+    cell.className = 'day-tile';
+    // hide days not in this month (optional: show but faded) -> we show them faint (inactive)
+    if (cellDate.getMonth() !== month) { cell.classList.add('day-tile'); cell.classList.add('inactive'); cell.style.visibility = 'hidden'; }
+    const label = document.createElement('div');
+    label.textContent = cellDate.getDate();
+    cell.appendChild(label);
+
+    const key = formatDateKey(cellDate);
+    const count = counts[key] || 0;
+    // fully booked if count >= TIME_SLOTS.length
+    if (count >= TIME_SLOTS.length) {
+      cell.classList.add('booked');
+      cell.title = 'Fully booked';
+    } else if (cellDate.getMonth() === month && (cellDate >= new Date().setHours(0,0,0,0))) {
+      // clickable only if in month and not in past
+      cell.style.cursor = 'pointer';
+      cell.addEventListener('click', () => {
+        if (count >= TIME_SLOTS.length) { showToast('Selected date is fully booked','error'); return; }
+        dateInput.value = key;
+        timeInput.value = '';
+        showToast(`Selected ${key}`, 'success');
+        openTimeModal(key, slots[key] || []);
+      });
+    } else {
+      // past dates are not clickable
+      cell.style.opacity = 0.5;
+    }
+
+    calGrid.appendChild(cell);
+  }
+}
+
+/* ===== Calendar navigation ===== */
+function showPrevMonth(){ 
+  const d = new Date(displayedYear, displayedMonth, 1);
+  d.setMonth(d.getMonth() - 1);
+  renderCalendar(d.getFullYear(), d.getMonth());
+}
+function showNextMonth(){
+  const d = new Date(displayedYear, displayedMonth, 1);
+  d.setMonth(d.getMonth() + 1);
+  renderCalendar(d.getFullYear(), d.getMonth());
+}
+document.getElementById('prevMonth').addEventListener('click', showPrevMonth);
+document.getElementById('nextMonth').addEventListener('click', showNextMonth);
+
+/* ===== Time modal functions ===== */
+function openTimeModal(dateKey, bookedSlots){
+  slotsDiv.innerHTML = '';
+  const booked = bookedSlots || [];
+  TIME_SLOTS.forEach(slot => {
+    const btn = document.createElement('button');
+    btn.className = 'slot';
+    btn.textContent = slot;
+    btn.dataset.time = slot;
+    if (booked.includes(slot)) {
+      btn.classList.add('booked'); btn.disabled = true;
+    } else {
+      btn.addEventListener('click', () => {
+        timeInput.value = slot;
+        closeTimeModal();
+        showToast(`${slot} selected`, 'success');
+      });
+    }
+    slotsDiv.appendChild(btn);
+  });
+  timeModal.classList.add('show');
+  timeModal.style.display = 'flex';
+}
+function closeTimeModal(){
+  timeModal.classList.remove('show');
+  timeModal.style.display = 'none';
+}
+document.getElementById('closeSlots').addEventListener('click', closeTimeModal);
+timeModal.addEventListener('click', (e)=> { if (e.target === timeModal) closeTimeModal(); });
+
+/* open time button */
+document.getElementById('openTimeBtn').addEventListener('click', async ()=> {
+  const d = dateInput.value;
+  if (!d) { showToast('Please choose a date first from the calendar', 'error'); return; }
+  // fetch booked slots for date
+  const snap = await get(ref(db, `appointments/${d}`));
+  const booked = snap.exists() ? Object.values(snap.val()).map(a => a && a.time).filter(Boolean) : [];
+  openTimeModal(d, booked);
+});
+
+/* ===== Load initial month (current) ===== */
+(function initCalendar(){
+  const now = new Date();
+  renderCalendar(now.getFullYear(), now.getMonth());
+})();
+
+/* ===== Service "Others" behavior ===== */
+serviceSelect.addEventListener('change', ()=> {
+  if (serviceSelect.value === 'Others') {
+    otherWrap.style.display = 'block';
+    otherText.required = true;
+  } else {
+    otherWrap.style.display = 'none';
+    otherText.required = false;
+    otherText.value = '';
+  }
+});
+
+/* ===== Booking: prevent double booking, save to DB, send EmailJS ===== */
+function safeSlotKey(slot){ return slotKey(slot); }
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  let service = serviceSelect.value;
+  if (service === 'Others') service = otherText.value.trim() || 'Others';
+  const dateKey = dateInput.value;
+  const timeSlot = timeInput.value;
+  const notes = document.getElementById('notes').value.trim();
+
+  if (!name || !email || !phone || !service || !dateKey || !timeSlot) {
+    showToast('Please complete all required fields and pick a date & time', 'error'); return;
+  }
+
+  try {
+    // re-check availability
+    const sKey = safeSlotKey(timeSlot);
+    const apptRef = ref(db, `appointments/${dateKey}/${sKey}`);
+    const existing = await get(apptRef);
+    if (existing.exists()) {
+      showToast('That time was just booked. Please choose another slot.', 'error');
+      // refresh calendar
+      await renderCalendar(displayedYear, displayedMonth);
+      return;
+    }
+
+    // set appointment under /appointments/{date}/{slotKey}
+    await set(apptRef, { name, email, phone, service, date: dateKey, time: timeSlot, notes, timestamp: Date.now() });
+
+    // also push to list (compat)
+    try { await push(ref(db, 'appointments_list'), { name, email, phone, service, date: dateKey, time: timeSlot, notes, timestamp: Date.now() }); } catch(e){ /* non-fatal */ }
+
+    // send email (non-blocking)
+    if (window.emailjs && typeof window.emailjs.send === 'function') {
+      try {
+        await window.emailjs.send('service_qtacvtn', 'template_ewvtufi', { to_email: email, name, service, date: dateKey, time: timeSlot });
+      } catch (err) {
+        console.warn('EmailJS send failed', err);
+      }
+    }
+
+    showToast('Appointment booked — confirmation sent (if email available).', 'success');
+
+    // reset form
+    form.reset();
+    timeInput.value = '';
+    dateInput.value = '';
+
+    // refresh calendar so date may become fully-booked and gray out
+    await renderCalendar(displayedYear, displayedMonth);
+
+  } catch (err) {
+    console.error('Booking failed', err);
+    showToast('Error saving appointment — please try again.', 'error');
+  }
+});
+
+/* ===== Periodic refresh so calendar updates if someone else books ===== */
+setInterval(()=> renderCalendar(displayedYear, displayedMonth), 30_000);
+
+</script>
+</body>
+  </html>
