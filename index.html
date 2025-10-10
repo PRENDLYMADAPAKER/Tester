@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Guidance Appointment Scheduling</title>
+
+  <!-- EmailJS (global) -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+  <!-- firebase-config.js must be in the same folder and export `app` -->
+  <script type="module" src="./firebase-config.js" defer></script>
+
+  <style>
+    /* ----------------- Base & Background ----------------- */
+    :root{
+      --bg-top: #fff6fb;
+      --bg-mid: #f6e6ff;
+      --bg-bot: #fff6fb;
+      --primary: #6c2bb9;
+      --accent: #8a3bd3;
+      --card: rgba(255,255,255,0.88);
+      --muted: #6f5f7a;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:"Poppins",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;color:#241232}
+    body{
+      min-height:100vh;
+      margin:0;
+      background: linear-gradient(180deg,var(--bg-top) 0%, var(--bg-mid) 50%, var(--bg-bot) 100%);
+      background-attachment: fixed;
+      background-size: cover;
+      display:flex;
+      justify-content:center;
+      padding:28px 12px;
+    }
+
+    /* ----------------- Layout container ----------------- */
+    .wrap {
+      width:100%;
+      max-width:780px;
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+      align-items:center;
+    }
+
+    header {
+      text-align:center;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:8px;
+    }
+    .logo {
+      width:120px;
+      height:auto;
+      display:block;
+      object-fit:contain;
+    }
+    .title {
+      font-size:1.9rem;
+      color:var(--primary);
+      font-weight:700;
+      margin:0;
+      text-align:center;
+    }
+
+    /* ----------------- Calendar card (small, centered) ----------------- */
+    .calendarCard {
+      width:92%;
+      max-width:520px;
+      background:var(--card);
+      border-radius:14px;
+      padding:12px 14px;
+      box-shadow: 0 12px 36px rgba(30,0,50,0.06);
+      border:1px solid rgba(0,0,0,0.04);
+      backdrop-filter: blur(8px);
+    }
+
+    .cal-top {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:8px;
+    }
+    .cal-month { text-align:center; flex:1; color:var(--primary); font-weight:700; font-size:1.05rem; }
+    .cal-nav { display:flex; gap:8px; }
+    .cal-nav button {
+      background:linear-gradient(180deg,var(--accent),var(--primary));
+      color:white;
+      border:none;
+      padding:8px 10px;
+      border-radius:8px;
+      cursor:pointer;
+      box-shadow: 0 6px 18px rgba(108,43,185,0.12);
+    }
+
+    .weeknames {
+      display:grid;
+      grid-template-columns:repeat(7, 1fr);
+      gap:6px;
+      margin-bottom:8px;
+      color:var(--muted);
+      font-weight:700;
+      font-size:12px;
+      text-align:center;
+    }
+
+    .cal-grid {
+      display:grid;
+      grid-template-columns:repeat(7, 1fr);
+      gap:8px;
+    }
+
+    .day {
+      height:44px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:10px;
+      font-weight:700;
+      color:var(--primary);
+      background: rgba(255,255,255,0.98);
+      cursor:pointer;
+      transition: transform .12s ease, box-shadow .12s ease;
+      box-shadow: 0 6px 14px rgba(30,0,50,0.04);
+      user-select:none;
+    }
+    .day:hover { transform: translateY(-6px); box-shadow: 0 12px 28px rgba(30,0,50,0.08); }
+    .day.booked { background:#efefef; color:#9a9a9a; cursor:not-allowed; transform:none; box-shadow:none; }
+    .day.inactive { visibility:hidden; pointer-events:none; }
+    .day.selected { background: linear-gradient(180deg,var(--accent),var(--primary)); color:white; box-shadow: 0 10px 30px rgba(108,43,185,0.12); }
+
+    /* ----------------- Form card ----------------- */
+    .card {
+      width:92%;
+      max-width:720px;
+      background: var(--card);
+      border-radius:14px;
+      padding:18px;
+      box-shadow: 0 14px 44px rgba(30,0,50,0.06);
+      border:1px solid rgba(0,0,0,0.04);
+      backdrop-filter: blur(8px);
+    }
+    .card h2 { color:var(--primary); margin:0 0 12px 0; text-align:center; }
+
+    form { display:flex; flex-direction:column; gap:12px; }
+    label { font-weight:600; color:var(--primary); font-size:14px; display:block; margin-bottom:6px; }
+    input, select, textarea { width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(0,0,0,0.06); font-size:15px; background:white; }
+    textarea { min-height:100px; resize:vertical; }
+
+    .row { display:flex; gap:12px; }
+    .row > * { flex:1; }
+
+    .slot-grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:12px; margin-top:6px; }
+    .slot-btn {
+      padding:12px;
+      border-radius:12px;
+      border:1px solid rgba(0,0,0,0.12);
+      background:white;
+      font-weight:700;
+      cursor:pointer;
+      text-align:center;
+      transition: transform .12s ease, box-shadow .12s ease;
+    }
+    .slot-btn:hover { transform: translateY(-3px); box-shadow:0 8px 20px rgba(108,43,185,0.06); }
+    .slot-btn.selected { background:var(--primary); color:white; border-color:transparent; box-shadow:0 10px 28px rgba(108,43,185,0.12); }
+    .slot-btn.booked { background:#f0f0f0; color:#9a9a9a; cursor:not-allowed; border-color:transparent; box-shadow:none; transform:none; }
+
+    .btn {
+      padding:12px 14px; border-radius:12px; border:none; background: linear-gradient(90deg,var(--accent),var(--primary)); color:white; font-weight:700; cursor:pointer;
+    }
+    .btn.ghost { background:transparent; border:1px solid rgba(0,0,0,0.06); color:var(--primary); }
+
+    .muted { color:#6b6b6b; font-size:13px; text-align:center }
+
+    /* ----------------- Toast (top-right) ----------------- */
+    .toast-wrap { position: fixed; right:18px; top:18px; z-index:3000; display:flex; flex-direction:column; gap:10px; align-items:flex-end; }
+    .toast {
+      min-width:220px; max-width:360px;
+      background: rgba(255,255,255,0.9); color:var(--primary);
+      padding:12px 14px; border-radius:10px; box-shadow: 0 12px 36px rgba(0,0,0,0.12);
+      border-left:6px solid var(--accent);
+      opacity:0; transform: translateY(-8px); transition: opacity 2s ease, transform 0.4s ease;
+      font-weight:700;
+    }
+    .toast.show { opacity:1; transform: translateY(0); }
+    .toast.success { border-left-color:#23c26b; color:#0d5e33; }
+    .toast.error { border-left-color:#ff6b6b; color:#7b2222; }
+
+    @media(max-width:560px){
+      .slot-grid { grid-template-columns:repeat(2,1fr); }
+      .day { height:40px; font-size:14px; }
+      .title { font-size:1.6rem; }
+      .calendarCard{ padding:10px }
+      .card{ padding:14px }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap" role="main">
+    <header>
+      <img class="logo" src="https://i.imgur.com/1EOyoBG.png" alt="Guidance logo">
+      <h1 class="title">Guidance Appointment Scheduling</h1>
+    </header>
+
+    <!-- Calendar -->
+    <div class="calendarCard" aria-label="Calendar">
+      <div class="cal-top">
+        <div></div><!-- placeholder so month stays centered -->
+        <div class="cal-month" id="monthTitle">Month YYYY</div>
+        <div class="cal-nav">
+          <button id="prevMonth" title="Previous month">◀</button>
+          <button id="nextMonth" title="Next month">▶</button>
+        </div>
+      </div>
+
+      <div class="weeknames">
+        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+      </div>
+
+      <div class="cal-grid" id="calGrid" role="grid"></div>
+    </div>
+
+    <!-- Booking Form -->
+    <section class="card" aria-labelledby="bookTitle">
+      <h2 id="bookTitle">Book an Appointment</h2>
+
+      <form id="appointmentForm" autocomplete="off">
+        <div>
+          <label for="name">Full Name</label>
+          <input id="name" name="name" type="text" placeholder="Full name" required>
+        </div>
+
+        <div>
+          <label for="email">Email Address</label>
+          <input id="email" name="email" type="email" placeholder="you@example.com" required>
+        </div>
+
+        <div>
+          <label for="phone">Phone Number</label>
+          <input id="phone" name="phone" type="tel" placeholder="+63xxxxxxxxxx" required>
+        </div>
+
+        <div>
+          <label for="service">Service</label>
+          <select id="service" name="service" required>
+            <option value="">Select service</option>
+            <option value="Counseling">Counseling</option>
+            <option value="Career Guidance">Career Guidance</option>
+            <option value="Academic Consultation">Academic Consultation</option>
+            <option value="Others">Others</option>
+          </select>
+        </div>
+
+        <div id="otherWrap" style="display:none;">
+          <label for="otherText">Please specify</label>
+          <input id="otherText" type="text" placeholder="Please specify the service">
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="dateField">Date</label>
+            <input id="dateField" type="text" placeholder="Pick a date from calendar" readonly required>
+          </div>
+          <div>
+            <label for="timeField">Time</label>
+            <input id="timeField" type="text" placeholder="Pick a time slot" readonly required>
+          </div>
+        </div>
+
+        <div>
+          <label>Available Time Slots</label>
+          <div class="slot-grid" id="slotGrid" aria-live="polite"></div>
+        </div>
+
+        <div>
+          <label for="notes">Notes (optional)</label>
+          <textarea id="notes" name="notes" placeholder="Additional notes..."></textarea>
+        </div>
+
+        <div style="display:flex; gap:12px;">
+          <button type="button" id="openTimesBtn" class="btn ghost">Open times</button>
+          <button type="submit" class="btn">Submit Appointment</button>
+        </div>
+
+        <p class="muted">Fully booked dates and taken time slots are grayed out.</p>
+      </form>
+    </section>
+  </div>
+
+  <!-- Toasts -->
+  <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
+
+<script type="module">
+  // ----------------- Imports -----------------
+  import { app } from './firebase-config.js'; // keep your config hidden in this file
+  import { getDatabase, ref, get, set, push } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+  // ----------------- Init -----------------
+  const db = getDatabase(app);
+
+  // EmailJS init (your public key)
+  if (window.emailjs && typeof window.emailjs.init === 'function') {
+    window.emailjs.init("xvStFrKI-3M-3ZCvz");
+  } else {
+    console.warn('EmailJS not available.');
+  }
+
+  // ----------------- DOM refs -----------------
+  const calGrid = document.getElementById('calGrid');
+  const monthTitle = document.getElementById('monthTitle');
+  const prevMonthBtn = document.getElementById('prevMonth');
+  const nextMonthBtn = document.getElementById('nextMonth');
+
+  const dateField = document.getElementById('dateField');
+  const timeField = document.getElementById('timeField');
+  const slotGrid = document.getElementById('slotGrid');
+  const openTimesBtn = document.getElementById('openTimesBtn');
+
+  const serviceSelect = document.getElementById('service');
+  const otherWrap = document.getElementById('otherWrap');
+  const otherText = document.getElementById('otherText');
+
+  const form = document.getElementById('appointmentForm');
+  const toastWrap = document.getElementById('toastWrap');
+
+  // ----------------- Slot constants -----------------
+  const TIME_SLOTS = [
+    "8:00 AM - 9:00 AM",
+    "9:00 AM - 10:00 AM",
+    "10:00 AM - 11:00 AM",
+    "11:00 AM - 12:00 NN",
+    "1:00 PM - 2:00 PM",
+    "2:00 PM - 3:00 PM",
+    "3:00 PM - 4:00 PM",
+    "4:00 PM - 5:00 PM"
+  ];
+
+  // ----------------- Helpers -----------------
+  function formatDateKey(d) {
+    const dd = new Date(d);
+    const y = dd.getFullYear();
+    const m = String(dd.getMonth()+1).padStart(2,'0');
+    const day = String(dd.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  function slotToKey(slot) {
+    return slot.replace(/[^a-zA-Z0-9]/g,'_').toLowerCase();
+  }
+
+  // Toast helper: fade-in 2s, visible 1s, fade-out 2s
+  function showToast(msg, kind='success') {
+    const el = document.createElement('div');
+    el.className = 'toast ' + (kind === 'error' ? 'error' : 'success');
+    el.textContent = msg;
+    toastWrap.appendChild(el);
+    // fade-in (2s)
+    requestAnimationFrame(()=> el.classList.add('show'));
+    // after 3s (2s fade-in + 1s visible) start fade-out
+    setTimeout(()=> {
+      el.classList.remove('show');
+      // remove after fade-out 2s
+      setTimeout(()=> el.remove(), 2000);
+    }, 3000);
+  }
+
+  // Fetch all appointments grouped by date: { dateKey: [time,...], ... }
+  async function fetchAppointmentsMap() {
+    try {
+      const snap = await get(ref(db, 'appointments'));
+      if (!snap.exists()) return {};
+      const data = snap.val();
+      // Data shape assumed date-keyed: /appointments/{YYYY-MM-DD}/{slotKey} -> {time, ...}
+      const map = {};
+      for (const dateKey of Object.keys(data)) {
+        const dayNode = data[dateKey] || {};
+        map[dateKey] = Object.values(dayNode).map(a => a && a.time).filter(Boolean);
+      }
+      return map;
+    } catch (err) {
+      console.error('fetchAppointmentsMap', err);
+      return {};
+    }
+  }
+
+  // Render calendar (6 weeks grid)
+  let displayedYear, displayedMonth;
+  async function renderCalendar(year, month) {
+    displayedYear = year; displayedMonth = month;
+    const firstOfMonth = new Date(year, month, 1);
+    monthTitle.textContent = firstOfMonth.toLocaleString(undefined, { month:'long', year:'numeric' });
+
+    // get start: Sunday on or before 1st
+    const start = new Date(year, month, 1);
+    start.setDate(1 - start.getDay());
+
+    const { /*counts,*/ slots } = await (async ()=>{
+      const m = await fetchAppointmentsMap();
+      return { slots: m };
+    })();
+
+    calGrid.innerHTML = '';
+
+    for (let i=0;i<42;i++) {
+      const cellDate = new Date(start);
+      cellDate.setDate(start.getDate() + i);
+      const dayEl = document.createElement('div');
+      dayEl.className = 'day';
+      const dateKey = formatDateKey(cellDate);
+      dayEl.textContent = cellDate.getDate();
+
+      // hide out-of-month days but keep space
+      if (cellDate.getMonth() !== month) {
+        dayEl.classList.add('inactive');
+        dayEl.style.visibility = 'hidden';
+      } else {
+        // past dates disabled
+        const today = new Date(); today.setHours(0,0,0,0);
+        if (cellDate < today) {
+          dayEl.classList.add('booked');
+          dayEl.title = 'Past date';
+        } else {
+          const bookedTimes = slots[dateKey] || [];
+          if (bookedTimes.length >= TIME_SLOTS.length) {
+            dayEl.classList.add('booked');
+            dayEl.title = 'Fully booked';
+          } else {
+            // clickable
+            dayEl.addEventListener('click', async () => {
+              // unselect others
+              document.querySelectorAll('.day.selected').forEach(x => x.classList.remove('selected'));
+              dayEl.classList.add('selected');
+              dateField.value = dateKey;
+              timeField.value = '';
+              // populate slots for that date (disable booked ones)
+              populateSlotsForDate(dateKey, slots[dateKey] || []);
+              // scroll to form area
+              setTimeout(()=> document.querySelector('.card').scrollIntoView({behavior:'smooth', block:'start'}), 150);
+            });
+          }
+        }
+      }
+      calGrid.appendChild(dayEl);
+    }
+
+    // prev/next constraints: disable prev if it's before current month
+    const now = new Date();
+    prevMonthBtn.disabled = (new Date(year, month, 1) <= new Date(now.getFullYear(), now.getMonth(), 1));
+  }
+
+  // Calendar nav
+  prevMonthBtn.addEventListener('click', ()=>{
+    const d = new Date(displayedYear, displayedMonth - 1, 1);
+    const now = new Date();
+    const curStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    if (d < curStart) { showToast('Cannot view before current month', 'error'); return; }
+    renderCalendar(d.getFullYear(), d.getMonth());
+  });
+  nextMonthBtn.addEventListener('click', ()=>{
+    const d = new Date(displayedYear, displayedMonth + 1, 1);
+    renderCalendar(d.getFullYear(), d.getMonth());
+  });
+
+  // Populate slot buttons for a given date, disabling booked slots
+  function makeSlotButton(slot, booked=false) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'slot-btn';
+    btn.textContent = slot;
+    if (booked) {
+      btn.classList.add('booked');
+      btn.disabled = true;
+    } else {
+      btn.addEventListener('click', () => {
+        // deselect others
+        document.querySelectorAll('.slot-btn.selected').forEach(x => x.classList.remove('selected'));
+        btn.classList.add('selected');
+        timeField.value = slot;
+      });
+    }
+    return btn;
+  }
+
+  function populateSlotsForDate(dateKey, bookedSlots=[]) {
+    slotGrid.innerHTML = '';
+    // if no dateKey, show placeholders
+    if (!dateKey) {
+      TIME_SLOTS.forEach(s => {
+        const ph = document.createElement('div'); ph.className='slot-btn booked'; ph.textContent = s; slotGrid.appendChild(ph);
+      });
+      return;
+    }
+    TIME_SLOTS.forEach(s => {
+      const isBooked = (bookedSlots || []).includes(s);
+      slotGrid.appendChild(makeSlotButton(s, isBooked));
+    });
+  }
+
+  // Open times button
+  openTimesBtn.addEventListener('click', async ()=>{
+    const d = dateField.value;
+    if (!d) { showToast('Please select a date from the calendar first', 'error'); return; }
+    // fetch latest booked slots for that date
+    const snap = await get(ref(db, `appointments/${d}`));
+    const booked = snap.exists() ? Object.values(snap.val()).map(x => x && x.time).filter(Boolean) : [];
+    populateSlotsForDate(d, booked);
+    // focus first available slot
+    const firstAvail = slotGrid.querySelector('.slot-btn:not(.booked)');
+    if (firstAvail) firstAvail.focus();
+  });
+
+  // Service Others behavior
+  serviceSelect.addEventListener('change', ()=>{
+    if (serviceSelect.value === 'Others') {
+      otherWrap.style.display = 'block';
+      otherText.required = true;
+    } else {
+      otherWrap.style.display = 'none';
+      otherText.required = false;
+      otherText.value = '';
+    }
+  });
+
+  // Submit booking: double-check & write under /appointments/{date}/{slotKey}
+  form.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    let svc = serviceSelect.value;
+    if (svc === 'Others') svc = otherText.value.trim() || 'Others';
+    const dateKey = dateField.value;
+    const timeSlot = timeField.value;
+    const notes = document.getElementById('notes').value.trim();
+
+    if (!name || !email || !phone || !svc || !dateKey || !timeSlot) {
+      showToast('Please complete all required fields and pick a date & time', 'error'); return;
+    }
+
+    try {
+      const slotKey = slotToKey(timeSlot);
+      const apptRef = ref(db, `appointments/${dateKey}/${slotKey}`);
+      const existing = await get(apptRef);
+      if (existing.exists()) {
+        showToast('That slot was just booked. Please choose another time.', 'error');
+        const newBooked = await fetch(ref(db, `appointments/${dateKey}`));
+        const newBookedList = newBooked.exists() ? Object.values(newBooked.val()).map(x => x && x.time).filter(Boolean) : [];
+        populateSlotsForDate(dateKey, newBookedList);
+        return;
+      }
+
+      const appt = { name, email, phone, service: svc, date: dateKey, time: timeSlot, notes, status: 'pending', timestamp: Date.now() };
+      await set(apptRef, appt);
+
+        // keep compatibility push
+      try { await push(ref(db, 'appointments_list'), appt); } catch(e){ /* ignore */ }
+
+      // Send EmailJS (non-blocking)
+      try {
+        if (window.emailjs && typeof window.emailjs.send === 'function') {
+          await window.emailjs.send('service_qtacvtn', 'template_ewvtufi', { to_email: email, name, service: svc, date: dateKey, time: timeSlot });
+        }
+      } catch(err) {
+        console.warn('EmailJS send failed', err);
+      }
+
+      showToast('Appointment booked — confirmation sent if email available', 'success');
+
+      // reset & refresh
+      form.reset();
+      dateField.value = '';
+      timeField.value = '';
+      populateSlotsForDate('', []);
+      await renderCalendar(displayedYear, displayedMonth);
+    } catch (err) {
+      console.error('Save failed', err);
+      showToast('Failed saving appointment. Try again.', 'error');
+    }
+  });
+
+  // ----------------- Init -----------------
+  (async function init(){
+    const now = new Date();
+    await renderCalendar(now.getFullYear(), now.getMonth());
+    populateSlotsForDate('', []);
+    // refresh calendar every 30s so you see other user's bookings
+    setInterval(()=> renderCalendar(displayedYear, displayedMonth), 30_000);
+  })();
+
+</script>
+</body>
+</html>
